@@ -12,6 +12,7 @@
 //! Неверный PIN тормозит ответ, после 10 ошибок за 10 минут вход закрыт до конца окна.
 
 use crate::config::log;
+use crate::api::{Api, Track};
 use crate::player::Player;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
@@ -33,6 +34,15 @@ pub enum Event {
     Next,
     Prev,
     Volume(f32),
+    Seek(f32),
+    /// Лайк текущему треку (повторно — убрать).
+    Like,
+    /// Перейти к треку очереди (индекс в `upcoming`).
+    Jump(usize),
+    /// Играть найденное: список результатов поиска с выбранного трека.
+    Play { tracks: Vec<Track>, start: usize },
+    /// «Играть следующим» (`next`) или «В конец очереди».
+    Enqueue { track: Track, next: bool },
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -40,6 +50,9 @@ struct RemoteCfg {
     enabled: bool,
     port: u16,
     pin: String,
+    /// Запомненные телефоны: sha256 ключей устройств (сами ключи хранит только телефон).
+    #[serde(default)]
+    devices: Vec<String>,
 }
 
 impl RemoteCfg {
@@ -53,7 +66,7 @@ impl RemoteCfg {
                 return c;
             }
         }
-        let c = RemoteCfg { enabled: true, port: 8787, pin: new_pin() };
+        let c = RemoteCfg { enabled: true, port: 8787, pin: new_pin(), devices: Vec::new() };
         let _ = std::fs::create_dir_all(crate::config::dir());
         let _ = std::fs::write(Self::path(), serde_json::to_string_pretty(&c).unwrap_or_default());
         c
@@ -62,7 +75,21 @@ impl RemoteCfg {
 
 /// 6 цифр из системного генератора случайных чисел (на Windows — BCryptGenRandom).
 fn new_pin() -> String {
-    let mut b = [0u8; 8];
+    format!("{:06}", u64::from_le_bytes(random_bytes::<8>()) % 1_000_000)
+}
+
+/// Ключ устройства: 32 байта случайности в hex.
+fn new_key() -> String {
+    random_bytes::<32>().iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn key_hash(key: &str) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(key.as_bytes()).iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn random_bytes<const N: usize>() -> [u8; N] {
+    let mut b = [0u8; N];
     #[cfg(windows)]
     unsafe {
         use windows_sys::Win32::Security::Cryptography::{BCryptGenRandom, BCRYPT_USE_SYSTEM_PREFERRED_RNG};
@@ -74,7 +101,7 @@ fn new_pin() -> String {
             let _ = f.read_exact(&mut b);
         }
     }
-    format!("{:06}", u64::from_le_bytes(b) % 1_000_000)
+    b
 }
 
 /// Будильник для долгих запросов: плеер «тыкает» его при каждом изменении состояния.
@@ -174,7 +201,7 @@ pub fn start(player: Player, on_event: impl Fn(Event) + Send + Sync + 'static) {
         ),
     );
     log(format!("remote: слушаю {url}"));
-    let ctx = Arc::new(Ctx { player, pin: cfg.pin, on_event: Box::new(on_event) });
+    let ctx = Arc::new(Ctx { player, found: Mutex::new(Vec::new()), cfg: Mutex::new(cfg), on_event: Box::new(on_event) });
     let _ = thread::Builder::new().name("remote".into()).stack_size(256 * 1024).spawn(move || {
         for stream in listener.incoming() {
             let Ok(stream) = stream else { continue };
@@ -198,7 +225,9 @@ pub fn start(player: Player, on_event: impl Fn(Event) + Send + Sync + 'static) {
 
 struct Ctx {
     player: Player,
-    pin: String,
+    /// Последние результаты поиска: телефон присылает только id трека.
+    found: Mutex<Vec<Track>>,
+    cfg: Mutex<RemoteCfg>,
     on_event: Box<dyn Fn(Event) + Send + Sync>,
 }
 
@@ -207,6 +236,8 @@ struct Req {
     path: String,
     query: String,
     pin: Option<String>,
+    /// Ключ устройства: заголовок X-Key или cookie ym_key.
+    key: Option<String>,
 }
 
 fn read_request(s: &mut TcpStream) -> Option<Req> {
@@ -230,14 +261,20 @@ fn read_request(s: &mut TcpStream) -> Option<Req> {
         None => (target, String::new()),
     };
     let mut pin = None;
+    let mut key = None;
     for l in lines {
         if let Some((k, v)) = l.split_once(':') {
-            if k.trim().eq_ignore_ascii_case("x-pin") {
-                pin = Some(v.trim().to_string());
+            let k = k.trim();
+            if k.eq_ignore_ascii_case("x-pin") {
+                pin = Some(v.trim().to_string()).filter(|v| !v.is_empty());
+            } else if k.eq_ignore_ascii_case("x-key") {
+                key = Some(v.trim().to_string()).filter(|v| !v.is_empty());
+            } else if k.eq_ignore_ascii_case("cookie") && key.is_none() {
+                key = v.split(';').find_map(|c| c.trim().strip_prefix("ym_key=").map(|x| x.to_string())).filter(|v| !v.is_empty());
             }
         }
     }
-    Some(Req { method, path, query, pin })
+    Some(Req { method, path, query, pin, key })
 }
 
 fn param<'a>(query: &'a str, key: &str) -> Option<&'a str> {
@@ -263,7 +300,16 @@ fn snapshot(p: &Player) -> (String, serde_json::Value) {
         None => (String::new(), String::new(), String::new(), None),
     };
     let vol = (s.volume * 100.0).round() as i32;
-    let sig = format!("{id}|{}|{}|{vol}", s.playing as u8, s.loading as u8);
+    let liked = !id.is_empty() && p.is_liked(&id);
+    let queue: Vec<serde_json::Value> = s
+        .upcoming
+        .iter()
+        .take(30)
+        .map(|t| serde_json::json!({ "id": t.id, "title": t.title, "artists": t.artists, "cover": t.cover_url(100), "duration": t.duration_ms / 1000 }))
+        .collect();
+    // Очередь входит в подпись коротким хешем id: телефон узнаёт и о «Играть следующим».
+    let qhash = s.upcoming.iter().take(30).fold(0u64, |h, t| t.id.bytes().fold(h.rotate_left(5) ^ 0x9e37, |h, b| h.wrapping_mul(31).wrapping_add(b as u64)));
+    let sig = format!("{id}|{}|{}|{vol}|{}|{qhash:x}", s.playing as u8, s.loading as u8, liked as u8);
     let body = serde_json::json!({
         "sig": sig,
         "hasTrack": s.track.is_some(),
@@ -275,6 +321,8 @@ fn snapshot(p: &Player) -> (String, serde_json::Value) {
         "position": s.position,
         "duration": s.duration,
         "volume": s.volume,
+        "liked": liked,
+        "queue": queue,
     });
     (sig, body)
 }
@@ -287,7 +335,8 @@ fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
         }
         ("GET", "/icon.png") => return respond(&mut s, "200 OK", "image/png", ICON, ""),
         ("GET", "/manifest.webmanifest") => {
-            let m = r##"{"name":"Музыка","short_name":"Музыка","start_url":"/","display":"standalone","background_color":"#0e0e10","theme_color":"#0e0e10","icons":[{"src":"/icon.png","sizes":"256x256","type":"image/png"}]}"##;
+            // Без start_url: иконка «Домой» откроет адрес вместе с ключом в #k=…, у неё своё хранилище.
+            let m = r##"{"name":"Музыка","short_name":"Музыка","display":"standalone","background_color":"#0e0e10","theme_color":"#0e0e10","icons":[{"src":"/icon.png","sizes":"256x256","type":"image/png"}]}"##;
             return respond(&mut s, "200 OK", "application/manifest+json", m.as_bytes(), "");
         }
         _ => {}
@@ -298,10 +347,40 @@ fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
     if locked_out() {
         return respond(&mut s, "429 Too Many Requests", "application/json", br#"{"error":"locked"}"#, "");
     }
-    if !req.pin.as_deref().is_some_and(|p| same(p, &ctx.pin)) {
-        note_fail();
-        thread::sleep(Duration::from_millis(800));
+    let (pin_ok, key_ok) = {
+        let cfg = ctx.cfg.lock().unwrap();
+        let pin_ok = req.pin.as_deref().is_some_and(|p| same(p, &cfg.pin));
+        let key_ok = req.key.as_deref().is_some_and(|k| {
+            let h = key_hash(k);
+            cfg.devices.iter().any(|d| same(d, &h))
+        });
+        (pin_ok, key_ok)
+    };
+    if !pin_ok && !key_ok {
+        // Пустой запрос (страница проверяет, помнят ли её) — не попытка подбора.
+        if req.pin.is_some() || req.key.is_some() {
+            note_fail();
+            thread::sleep(Duration::from_millis(800));
+        }
         return respond(&mut s, "401 Unauthorized", "application/json", br#"{"error":"pin"}"#, "");
+    }
+    // Вход по PIN: выдать телефону постоянный ключ, PIN больше не спрашивается.
+    if (req.method.as_str(), req.path.as_str()) == ("POST", "/api/login") {
+        if !pin_ok {
+            return respond(&mut s, "401 Unauthorized", "application/json", br#"{"error":"pin"}"#, "");
+        }
+        let key = new_key();
+        {
+            let mut cfg = ctx.cfg.lock().unwrap();
+            cfg.devices.push(key_hash(&key));
+            let n = cfg.devices.len();
+            if n > 20 {
+                cfg.devices.drain(..n - 20);
+            }
+            let _ = std::fs::write(RemoteCfg::path(), serde_json::to_string_pretty(&*cfg).unwrap_or_default());
+        }
+        let cookie = format!("Set-Cookie: ym_key={key}; Max-Age=34560000; Path=/; HttpOnly; SameSite=Strict\r\n");
+        return respond(&mut s, "200 OK", "application/json", serde_json::json!({ "key": key }).to_string().as_bytes(), &cookie);
     }
     match (req.method.as_str(), req.path.as_str()) {
         ("GET", "/api/state") => {
@@ -342,6 +421,17 @@ fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
                 Some("next") => Some(Event::Next),
                 Some("prev") => Some(Event::Prev),
                 Some("volume") => param(&req.query, "v").and_then(|v| v.parse::<f32>().ok()).filter(|v| v.is_finite()).map(|v| Event::Volume(v.clamp(0.0, 1.0))),
+                Some("seek") => param(&req.query, "v").and_then(|v| v.parse::<f32>().ok()).filter(|v| v.is_finite() && *v >= 0.0).map(Event::Seek),
+                Some("like") => Some(Event::Like),
+                Some("jump") => param(&req.query, "i").and_then(|v| v.parse::<usize>().ok()).map(Event::Jump),
+                Some(w @ ("play" | "next_up" | "queue")) => {
+                    let id = decode(param(&req.query, "id").unwrap_or(""));
+                    let found = ctx.found.lock().unwrap();
+                    found.iter().position(|t| t.id == id).map(|i| match w {
+                        "play" => Event::Play { tracks: found.clone(), start: i },
+                        _ => Event::Enqueue { track: found[i].clone(), next: w == "next_up" },
+                    })
+                }
                 _ => None,
             };
             match ev {
@@ -352,6 +442,56 @@ fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
                 None => respond(&mut s, "400 Bad Request", "application/json", br#"{"error":"cmd"}"#, ""),
             }
         }
+        ("GET", "/api/search") => {
+            let text = decode(param(&req.query, "q").unwrap_or(""));
+            let text = text.trim();
+            if text.is_empty() || text.chars().count() > 100 {
+                return respond(&mut s, "400 Bad Request", "application/json", br#"{"error":"q"}"#, "");
+            }
+            // Токен тот же, что у окна: настройки на диске обновляются при каждом его продлении.
+            let Some(token) = crate::config::Config::load().token.filter(|t| !t.is_empty()) else {
+                return respond(&mut s, "409 Conflict", "application/json", br#"{"error":"login"}"#, "");
+            };
+            match Api::new(&token).search(text, "track") {
+                Ok(found) => {
+                    let tracks: Vec<Track> = found.tracks.into_iter().take(30).collect();
+                    let list: Vec<serde_json::Value> = tracks
+                        .iter()
+                        .map(|t| serde_json::json!({ "id": t.id, "title": t.title, "artists": t.artists, "cover": t.cover_url(100), "duration": t.duration_ms / 1000, "liked": ctx.player.is_liked(&t.id) }))
+                        .collect();
+                    *ctx.found.lock().unwrap() = tracks;
+                    respond(&mut s, "200 OK", "application/json; charset=utf-8", serde_json::json!({ "tracks": list }).to_string().as_bytes(), "")
+                }
+                Err(e) => {
+                    log(format!("remote: поиск: {e}"));
+                    respond(&mut s, "502 Bad Gateway", "application/json", br#"{"error":"search"}"#, "")
+                }
+            }
+        }
         _ => respond(&mut s, "404 Not Found", "application/json", br#"{"error":"route"}"#, ""),
     }
+}
+
+/// Декодер параметра адреса: `%XX` (encodeURIComponent) и `+` как пробел.
+fn decode(v: &str) -> String {
+    let b = v.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'+' {
+            out.push(b' ');
+        } else if b[i] == b'%' && i + 2 < b.len() + 1 && i + 2 <= b.len() - 1 + 1 && i + 3 <= b.len() {
+            match std::str::from_utf8(&b[i + 1..i + 3]).ok().and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                Some(x) => {
+                    out.push(x);
+                    i += 2;
+                }
+                None => out.push(b'%'),
+            }
+        } else {
+            out.push(b[i]);
+        }
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }

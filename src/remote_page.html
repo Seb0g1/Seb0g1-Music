@@ -12,54 +12,81 @@
 <link rel="apple-touch-icon" href="/icon.png">
 <title>Музыка</title>
 <style>
-  :root { --bg: #0e0e10; --card: #18181c; --text: #f4f4f6; --muted: #9a9aa5; --accent: #ffd43b; --line: #2a2a31; }
+  :root { --bg: #0e0e10; --card: #18181c; --card2: #202026; --text: #f4f4f6; --muted: #9a9aa5; --accent: #ffd43b; --like: #ff4d6d; --line: #2a2a31; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 16px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
-  body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(20px, env(safe-area-inset-top)) 22px max(24px, env(safe-area-inset-bottom)); -webkit-user-select: none; user-select: none; }
-  .wrap { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 22px; }
-  .cover { width: 100%; aspect-ratio: 1; border-radius: 22px; background: var(--card) center/cover no-repeat; box-shadow: 0 18px 50px rgba(0,0,0,.45); display: grid; place-items: center; color: var(--muted); font-size: 64px; }
-  .meta { min-height: 52px; }
-  .title { font-size: 21px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+  body { padding: max(16px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom)); -webkit-user-select: none; user-select: none; }
+  .wrap { width: 100%; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  .top { display: grid; grid-template-columns: 92px 1fr 44px; gap: 14px; align-items: center; }
+  .cover { width: 92px; height: 92px; border-radius: 16px; background: var(--card) center/cover no-repeat; box-shadow: 0 10px 30px rgba(0,0,0,.45); display: grid; place-items: center; color: var(--muted); font-size: 34px; }
+  .meta { min-width: 0; }
+  .title { font-size: 19px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .artists { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-  .bar { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; }
-  .bar > i { display: block; height: 100%; width: 0; background: var(--text); border-radius: 4px; }
-  .times { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: 6px; font-variant-numeric: tabular-nums; }
-  .ctrl { display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
-  button { appearance: none; border: 0; background: none; color: var(--text); padding: 0; cursor: pointer; touch-action: manipulation; }
+  button { appearance: none; border: 0; background: none; color: var(--text); padding: 0; cursor: pointer; touch-action: manipulation; font: inherit; }
   button:active { transform: scale(.92); }
-  .side { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 50%; }
-  .side svg { width: 34px; height: 34px; }
-  .main { width: 84px; height: 84px; display: grid; place-items: center; border-radius: 50%; background: var(--text); color: var(--bg); }
-  .main svg { width: 38px; height: 38px; }
+  .like { width: 44px; height: 44px; display: grid; place-items: center; color: var(--muted); }
+  .like svg { width: 28px; height: 28px; }
+  .like.on { color: var(--like); }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; background: transparent; margin: 0; }
+  input[type=range]::-webkit-slider-runnable-track { height: 5px; border-radius: 5px; background: linear-gradient(to right, var(--text) var(--p, 0%), var(--line) var(--p, 0%)); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--text); margin-top: -7.5px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+  .times { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: -2px; font-variant-numeric: tabular-nums; }
+  .ctrl { display: flex; align-items: center; justify-content: space-between; padding: 0 10px; }
+  .side { width: 60px; height: 60px; display: grid; place-items: center; border-radius: 50%; }
+  .side svg { width: 32px; height: 32px; }
+  .main { width: 78px; height: 78px; display: grid; place-items: center; border-radius: 50%; background: var(--text); color: var(--bg); }
+  .main svg { width: 36px; height: 36px; }
   .vol { display: flex; align-items: center; gap: 12px; color: var(--muted); }
   .vol svg { width: 20px; height: 20px; flex: none; }
-  input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; height: 32px; background: transparent; }
-  input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(to right, var(--text) var(--p, 60%), var(--line) var(--p, 60%)); }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--text); margin-top: -9px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
-  .status { text-align: center; color: var(--muted); font-size: 13px; min-height: 18px; }
-  .pin { display: none; flex-direction: column; gap: 14px; text-align: center; }
-  .pin input { font-size: 30px; letter-spacing: 10px; text-align: center; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); width: 100%; }
+  .status { text-align: center; color: var(--muted); font-size: 13px; min-height: 18px; margin-top: -8px; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--card); border-radius: 12px; padding: 3px; }
+  .tabs button { padding: 9px; border-radius: 9px; color: var(--muted); font-weight: 600; font-size: 15px; }
+  .tabs button.on { background: var(--card2); color: var(--text); }
+  .search { display: flex; gap: 8px; }
+  .search input { flex: 1; min-width: 0; font-size: 16px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); -webkit-user-select: text; user-select: text; }
+  .search button { padding: 0 16px; border-radius: 12px; background: var(--accent); color: #111; font-weight: 700; }
+  .list { display: flex; flex-direction: column; }
+  .row { display: grid; grid-template-columns: 46px 1fr auto; gap: 12px; align-items: center; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+  .row .pic { width: 46px; height: 46px; border-radius: 8px; background: var(--card) center/cover no-repeat; }
+  .row .t { min-width: 0; text-align: left; }
+  .row .t b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .t span { display: block; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .acts { display: flex; gap: 4px; }
+  .acts button { width: 38px; height: 38px; border-radius: 10px; background: var(--card); display: grid; place-items: center; color: var(--muted); }
+  .acts svg { width: 20px; height: 20px; }
+  .acts .done { color: var(--accent); }
+  .dur { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .empty { color: var(--muted); text-align: center; padding: 22px 0; font-size: 14px; }
+  .pin { display: none; flex-direction: column; gap: 14px; text-align: center; padding-top: 18vh; }
+  .pin input { font-size: 30px; letter-spacing: 10px; text-align: center; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); width: 100%; -webkit-user-select: text; user-select: text; }
   .pin button { background: var(--accent); color: #111; font-weight: 700; font-size: 17px; padding: 14px; border-radius: 14px; }
   .err { color: #ff6b6b; min-height: 20px; font-size: 14px; }
   body.locked .player { display: none; } body.locked .pin { display: flex; }
+  body.checking .player, body.checking .pin { visibility: hidden; }
 </style>
 </head>
-<body class="locked">
+<body class="checking">
 <div class="wrap">
   <section class="pin" aria-label="Вход">
     <h2 style="margin:0">Управление музыкой</h2>
-    <div style="color:var(--muted)">Введите PIN из файла remote.txt на ПК</div>
+    <div style="color:var(--muted)">Введите PIN из файла remote.txt на ПК. Телефон запомнится — вводить его снова не придётся.</div>
     <input id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="••••••">
     <button id="go">Войти</button>
     <div class="err" id="err"></div>
   </section>
   <section class="player wrap" aria-label="Плеер">
-    <div class="cover" id="cover">♪</div>
-    <div class="meta"><div class="title" id="title">—</div><div class="artists" id="artists"></div></div>
-    <div><div class="bar"><i id="prog"></i></div><div class="times"><span id="pos">0:00</span><span id="dur">0:00</span></div></div>
+    <div class="top">
+      <div class="cover" id="cover">♪</div>
+      <div class="meta"><div class="title" id="title">—</div><div class="artists" id="artists"></div></div>
+      <button class="like" id="like" aria-label="Мне нравится"><svg viewBox="0 0 24 24" fill="currentColor"><path id="likep" d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4.5 6.6 4.5c2.1 0 3.8 1.2 5.4 3 1.6-1.8 3.3-3 5.4-3 3.6 0 5.7 3.7 4.2 7.2C19.5 16.4 12 21 12 21z"/></svg></button>
+    </div>
+    <div>
+      <input type="range" id="seek" min="0" max="1000" step="1" value="0" aria-label="Перемотка">
+      <div class="times"><span id="pos">0:00</span><span id="dur">0:00</span></div>
+    </div>
     <div class="ctrl">
       <button class="side" id="prev" aria-label="Назад"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
-      <button class="main" id="pp" aria-label="Пауза"><svg id="ppi" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+      <button class="main" id="pp" aria-label="Играть"><svg id="ppi" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
       <button class="side" id="next" aria-label="Вперёд"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
     </div>
     <div class="vol">
@@ -68,83 +95,165 @@
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9zm11.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM13 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
     </div>
     <div class="status" id="status"></div>
+    <div class="tabs" role="tablist">
+      <button id="tq" class="on" role="tab">Очередь</button>
+      <button id="ts" role="tab">Поиск</button>
+    </div>
+    <div id="pq" class="list"></div>
+    <div id="ps" hidden>
+      <form class="search" id="sf"><input id="q" type="search" enterkeyhint="search" placeholder="Трек или исполнитель" autocomplete="off"><button type="submit">Найти</button></form>
+      <div id="sr" class="list"></div>
+    </div>
   </section>
 </div>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
   const PLAY = '<path d="M8 5v14l11-7z"/>', PAUSE = '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>';
-  let pin = ""; try { pin = localStorage.getItem("pin") || ""; } catch (e) {}
-  let st = null, sig = "", at = 0, polling = false, ctl = null, dragging = false, volTimer = 0, lastCover = "";
+  const I_NEXT = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h12v2H3zm0 4h12v2H3zm0 4h8v2H3zm14-1v-3h2v3h3v2h-3v3h-2v-3h-3v-2z"/></svg>';
+  const I_END = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zm0 4h18v2H3zm0 4h10v2H3zm13 1l5 3-5 3z"/></svg>';
+  const store = { get(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }, set(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} } };
+  // Ключ устройства: из адреса иконки «Домой» (#k=…), из памяти страницы или из cookie (её шлёт браузер сам).
+  const fromHash = (location.hash.match(/k=([0-9a-f]{64})/) || [])[1] || "";
+  let key = fromHash || store.get("key");
+  if (key) { store.set("key", key); if (!fromHash) history.replaceState(null, "", "/#k=" + key); }
+  let st = null, sig = "", at = 0, polling = false, ctl = null, volDrag = false, seekDrag = false, volTimer = 0, lastCover = "", queueSig = "";
   const mmss = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+  const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-  function lock(msg) { document.body.classList.add("locked"); $("err").textContent = msg || ""; stop(); }
-  function unlock() { document.body.classList.remove("locked"); $("err").textContent = ""; }
+  function lock(msg) { document.body.className = "locked"; $("err").textContent = msg || ""; stop(); }
+  function unlock() { document.body.className = ""; $("err").textContent = ""; }
 
-  async function api(path, opts) {
-    const r = await fetch(path, Object.assign({ headers: { "X-Pin": pin }, cache: "no-store" }, opts || {}));
-    if (r.status === 401) { try { localStorage.removeItem("pin"); } catch (e) {} lock("Неверный PIN"); throw new Error("pin"); }
+  async function api(path, opts, pin) {
+    const headers = {}; if (key) headers["X-Key"] = key; if (pin) headers["X-Pin"] = pin;
+    const r = await fetch(path, Object.assign({ headers, cache: "no-store", credentials: "same-origin" }, opts || {}));
+    if (r.status === 401) { if (!pin) { key = ""; store.set("key", ""); lock(""); } throw new Error("pin"); }
     if (r.status === 429) { lock("Слишком много попыток — подождите 10 минут"); throw new Error("locked"); }
-    if (!r.ok) throw new Error("HTTP " + r.status);
+    if (!r.ok) { const e = new Error("HTTP " + r.status); e.status = r.status; throw e; }
     return r.json();
   }
 
   function render() {
     if (!st) return;
     $("title").textContent = st.hasTrack ? st.title : "Ничего не играет";
-    $("artists").textContent = st.hasTrack ? st.artists : "Включите музыку на ПК";
+    $("artists").textContent = st.hasTrack ? st.artists : "Включите музыку или найдите трек";
     if (st.cover !== lastCover) { lastCover = st.cover; $("cover").style.backgroundImage = st.cover ? 'url("' + st.cover + '")' : ""; $("cover").textContent = st.cover ? "" : "♪"; }
     $("ppi").innerHTML = st.playing ? PAUSE : PLAY;
     $("pp").setAttribute("aria-label", st.playing ? "Пауза" : "Играть");
-    if (!dragging) { const v = Math.round(st.volume * 100); $("vol").value = v; $("vol").style.setProperty("--p", v + "%"); }
+    $("like").classList.toggle("on", !!st.liked);
+    $("like").disabled = !st.hasTrack;
+    if (!volDrag) { const v = Math.round(st.volume * 100); $("vol").value = v; $("vol").style.setProperty("--p", v + "%"); }
     $("status").textContent = st.loading ? "Загрузка…" : "";
+    const qs = (st.queue || []).map((t) => t.id).join(",");
+    if (qs !== queueSig) { queueSig = qs; renderQueue(); }
     tick();
   }
   function tick() {
-    if (!st) return;
+    if (!st || seekDrag) return;
     const pos = Math.min(st.duration || 0, st.position + (st.playing ? (Date.now() - at) / 1000 : 0));
     $("pos").textContent = mmss(pos); $("dur").textContent = mmss(st.duration);
-    $("prog").style.width = st.duration ? (pos / st.duration * 100) + "%" : "0";
+    const p = st.duration ? (pos / st.duration * 1000) : 0;
+    $("seek").value = p; $("seek").style.setProperty("--p", (p / 10) + "%");
   }
   setInterval(() => { if (!document.hidden && st && st.playing) tick(); }, 1000);
 
-  // Один долгий запрос: ПК отвечает, только когда меняется трек, пауза или громкость.
+  function row(t, acts) {
+    return '<div class="row" data-id="' + esc(t.id) + '"><button class="pic" data-play style="background-image:' + (t.cover ? "url(&quot;" + esc(t.cover) + "&quot;)" : "none") + '"></button>' +
+      '<button class="t" data-play><b>' + esc(t.title) + '</b><span>' + esc(t.artists) + '</span></button>' + acts + '</div>';
+  }
+  function renderQueue() {
+    const q = (st && st.queue) || [];
+    $("pq").innerHTML = q.length ? q.map((t, i) => row(t, '<span class="dur">' + mmss(t.duration) + '</span>').replace('class="row"', 'class="row" data-i="' + i + '"')).join("") : '<div class="empty">Очередь пуста — найдите трек во вкладке «Поиск»</div>';
+  }
+  $("pq").addEventListener("click", (e) => {
+    const r = e.target.closest(".row"); if (!r || !e.target.closest("[data-play]")) return;
+    cmd("jump", "&i=" + r.dataset.i);
+  });
+
+  // Один долгий запрос: ПК отвечает, только когда меняется трек, пауза, громкость, лайк или очередь.
   async function loop() {
     if (polling) return; polling = true;
-    while (polling && !document.hidden && pin) {
+    while (polling && !document.hidden) {
       try {
         ctl = new AbortController();
         const s = await api("/api/state?wait=" + (sig ? 1 : 0) + "&sig=" + encodeURIComponent(sig), { signal: ctl.signal });
         st = s; sig = s.sig; at = Date.now(); unlock(); render();
       } catch (e) {
-        if (e.message === "pin" || e.message === "locked") break;
-        if (e.name === "AbortError") break;
-        $("status").textContent = "Нет связи с ПК — проверьте Wi-Fi";
+        if (e.message === "pin" || e.message === "locked" || e.name === "AbortError") break;
+        document.body.className = ""; $("status").textContent = "Нет связи с ПК — проверьте Wi-Fi";
         await new Promise((r) => setTimeout(r, 3000));
       }
     }
     polling = false;
   }
   function stop() { polling = false; if (ctl) ctl.abort(); }
-  document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); else { sig = ""; loop(); } });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); else if (!document.body.classList.contains("locked")) { sig = ""; loop(); } });
 
-  async function cmd(what, v) {
-    try { await api("/api/cmd?do=" + what + (v !== undefined ? "&v=" + v : ""), { method: "POST" }); } catch (e) {}
+  async function cmd(what, extra) {
+    try { await api("/api/cmd?do=" + what + (extra || ""), { method: "POST" }); return true; } catch (e) { return false; }
   }
   $("pp").onclick = () => { if (st) { st.playing = !st.playing; at = Date.now(); render(); } cmd("playpause"); };
   $("next").onclick = () => cmd("next");
   $("prev").onclick = () => cmd("prev");
+  $("like").onclick = () => { if (st && st.hasTrack) { st.liked = !st.liked; render(); cmd("like"); } };
+
   const vol = $("vol");
   vol.addEventListener("input", () => {
-    dragging = true; vol.style.setProperty("--p", vol.value + "%");
-    if (!volTimer) volTimer = setTimeout(() => { volTimer = 0; cmd("volume", (vol.value / 100).toFixed(2)); }, 150);
+    volDrag = true; vol.style.setProperty("--p", vol.value + "%");
+    if (!volTimer) volTimer = setTimeout(() => { volTimer = 0; cmd("volume", "&v=" + (vol.value / 100).toFixed(2)); }, 150);
   });
-  vol.addEventListener("change", () => { clearTimeout(volTimer); volTimer = 0; cmd("volume", (vol.value / 100).toFixed(2)); setTimeout(() => { dragging = false; }, 400); });
+  vol.addEventListener("change", () => { clearTimeout(volTimer); volTimer = 0; cmd("volume", "&v=" + (vol.value / 100).toFixed(2)); setTimeout(() => { volDrag = false; }, 400); });
 
-  function login() { pin = $("pin").value.trim(); if (!pin) return; try { localStorage.setItem("pin", pin); } catch (e) {} sig = ""; loop(); }
+  // Перемотка: пока палец на ползунке, показываем время; команда уходит один раз, когда его отпустили.
+  const seek = $("seek");
+  seek.addEventListener("input", () => {
+    seekDrag = true; seek.style.setProperty("--p", (seek.value / 10) + "%");
+    if (st) $("pos").textContent = mmss(seek.value / 1000 * st.duration);
+  });
+  seek.addEventListener("change", () => {
+    if (st && st.duration) { const sec = seek.value / 1000 * st.duration; st.position = sec; at = Date.now(); cmd("seek", "&v=" + sec.toFixed(1)); }
+    seekDrag = false; tick();
+  });
+
+  function tab(which) {
+    $("tq").classList.toggle("on", which === "q"); $("ts").classList.toggle("on", which === "s");
+    $("pq").hidden = which !== "q"; $("ps").hidden = which !== "s";
+    if (which === "s") $("q").focus();
+  }
+  $("tq").onclick = () => tab("q"); $("ts").onclick = () => tab("s");
+
+  $("sf").addEventListener("submit", async (e) => {
+    e.preventDefault(); $("q").blur();
+    const q = $("q").value.trim(); if (!q) return;
+    $("sr").innerHTML = '<div class="empty">Ищем…</div>';
+    try {
+      const r = await api("/api/search?q=" + encodeURIComponent(q));
+      $("sr").innerHTML = r.tracks.length ? r.tracks.map((t) => row(t, '<span class="acts"><button data-act="next_up" aria-label="Играть следующим">' + I_NEXT + '</button><button data-act="queue" aria-label="В конец очереди">' + I_END + '</button></span>')).join("") : '<div class="empty">Ничего не нашлось</div>';
+    } catch (err) {
+      $("sr").innerHTML = '<div class="empty">' + (err.status === 409 ? "Войдите в аккаунт в программе на ПК" : "Поиск не удался — попробуйте ещё раз") + '</div>';
+    }
+  });
+  $("sr").addEventListener("click", async (e) => {
+    const r = e.target.closest(".row"); if (!r) return;
+    const act = e.target.closest("[data-act]");
+    const id = encodeURIComponent(r.dataset.id);
+    if (act) { if (await cmd(act.dataset.act, "&id=" + id)) { act.classList.add("done"); } return; }
+    if (e.target.closest("[data-play]")) { cmd("play", "&id=" + id); tab("q"); }
+  });
+
+  async function login() {
+    const pin = $("pin").value.trim(); if (!pin) return;
+    try {
+      const r = await api("/api/login", { method: "POST" }, pin);
+      key = r.key; store.set("key", key);
+      // Ключ в адресе: «На экран "Домой"» сохранит его вместе со страницей.
+      history.replaceState(null, "", "/#k=" + key);
+      unlock(); sig = ""; loop();
+    } catch (e) { if (e.message === "pin") $("err").textContent = "Неверный PIN"; }
+  }
   $("go").onclick = login;
   $("pin").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
-  if (pin) loop(); else lock("");
+  loop(); // проверка: если ключ или cookie есть, PIN не спросим
 })();
 </script>
 </body>

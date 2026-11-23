@@ -2115,6 +2115,23 @@ fn install_remote(ui: &AppWindow, player: &Player) {
                     app.invoke_set_volume(v);
                 });
             }
+            Event::Seek(sec) => p.send(Cmd::Seek(sec)),
+            Event::Jump(i) => p.send(Cmd::Jump(i)),
+            Event::Enqueue { track, next } => p.send(Cmd::Enqueue { track, next }),
+            Event::Like => {
+                let _ = slint::invoke_from_event_loop(|| {
+                    with_ctx(|c| {
+                        if let Some(t) = c.player.state().track {
+                            c.like(t);
+                        }
+                    })
+                });
+            }
+            Event::Play { tracks, start } => {
+                let _ = slint::invoke_from_event_loop(move || {
+                    with_ctx(|c| c.play_tracks(tracks, start, ListKind::Tracks, "remote-search", "Поиск с телефона"));
+                });
+            }
         }
     });
 }

@@ -9,6 +9,12 @@ Pause, skip, volume, seek, likes, queue and search from an iPhone or Android ove
 
 [![Download](https://img.shields.io/github/v/release/Seb0g1/Seb0g1-Music?label=download&color=ffd43b&labelColor=1c1c1f&style=for-the-badge)](https://github.com/Seb0g1/Seb0g1-Music/releases/latest)
 <br>
+<a href="https://www.donationalerts.com/r/sebog"><img src="https://img.shields.io/badge/%F0%9F%92%9B%20DONATE%20%E2%80%94%20support%20the%20author-ff5f1f?style=for-the-badge&labelColor=1c1c1f" height="46" alt="Donate — support the author"></a>
+<br>
+[![Twitch](https://img.shields.io/badge/Twitch-seb0g1-9146ff?logo=twitch&logoColor=white&labelColor=1c1c1f)](https://www.twitch.tv/seb0g1)
+[![Portfolio](https://img.shields.io/badge/portfolio-sebog1.ru-2b2b30?labelColor=1c1c1f)](https://sebog1.ru)
+[![Order development](https://img.shields.io/badge/order%20development-shop.sebog1.ru-ffd43b?labelColor=1c1c1f)](https://shop.sebog1.ru)
+<br>
 ![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-2b2b30?labelColor=1c1c1f)
 ![Rust](https://img.shields.io/badge/Rust-1.92%2B-2b2b30?labelColor=1c1c1f&logo=rust)
 ![iPhone and Android](https://img.shields.io/badge/remote-iPhone%20%7C%20Android-2b2b30?labelColor=1c1c1f)
@@ -161,6 +167,19 @@ The installer is built with [Inno Setup 6](https://jrsoftware.org/isinfo.php):
 | [`src/gui.rs`](src/gui.rs), [`src/tray.rs`](src/tray.rs) | remote commands through the app window, tray item |
 | [`packaging/windows/`](packaging/windows) | installer and guide |
 | [`tools/screenshots.py`](tools/screenshots.py) | README screenshots on demo data |
+
+## 💛 Support the author and order development
+
+Seb0g1 Musick is free and will stay free. If the remote saved you a couple of lost rounds, support the author:
+
+<p align="center"><a href="https://www.donationalerts.com/r/sebog"><img src="https://img.shields.io/badge/%F0%9F%92%9B%20DONATE%20on%20DonationAlerts-ff5f1f?style=for-the-badge&labelColor=1c1c1f" height="56" alt="Donate on DonationAlerts"></a></p>
+
+| | |
+|---|---|
+| 💸 **Donate** | [donationalerts.com/r/sebog](https://www.donationalerts.com/r/sebog) |
+| 🎮 **Twitch streams** | [twitch.tv/seb0g1](https://www.twitch.tv/seb0g1) |
+| 🧑‍💻 **Portfolio** | [sebog1.ru](https://sebog1.ru) |
+| 🛒 **Order development** | [shop.sebog1.ru](https://shop.sebog1.ru) — websites, bots, apps and custom work |
 
 ## 📄 License and credits
 

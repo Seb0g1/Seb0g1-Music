@@ -9,6 +9,12 @@
 
 [![Скачать](https://img.shields.io/github/v/release/Seb0g1/Seb0g1-Music?label=%D1%81%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C&color=ffd43b&labelColor=1c1c1f&style=for-the-badge)](https://github.com/Seb0g1/Seb0g1-Music/releases/latest)
 <br>
+<a href="https://www.donationalerts.com/r/sebog"><img src="https://img.shields.io/badge/%F0%9F%92%9B%20DONATE%20%E2%80%94%20%D0%BF%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%B0%D1%82%D1%8C%20%D0%B0%D0%B2%D1%82%D0%BE%D1%80%D0%B0-ff5f1f?style=for-the-badge&labelColor=1c1c1f" height="46" alt="Donate — поддержать автора"></a>
+<br>
+[![Twitch](https://img.shields.io/badge/Twitch-seb0g1-9146ff?logo=twitch&logoColor=white&labelColor=1c1c1f)](https://www.twitch.tv/seb0g1)
+[![Портфолио](https://img.shields.io/badge/%D0%BF%D0%BE%D1%80%D1%82%D1%84%D0%BE%D0%BB%D0%B8%D0%BE-sebog1.ru-2b2b30?labelColor=1c1c1f)](https://sebog1.ru)
+[![Заказать разработку](https://img.shields.io/badge/%D0%B7%D0%B0%D0%BA%D0%B0%D0%B7%D0%B0%D1%82%D1%8C%20%D1%80%D0%B0%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%BA%D1%83-shop.sebog1.ru-ffd43b?labelColor=1c1c1f)](https://shop.sebog1.ru)
+<br>
 ![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-2b2b30?labelColor=1c1c1f)
 ![Rust](https://img.shields.io/badge/Rust-1.92%2B-2b2b30?labelColor=1c1c1f&logo=rust)
 ![iPhone и Android](https://img.shields.io/badge/%D0%BF%D1%83%D0%BB%D1%8C%D1%82-iPhone%20%7C%20Android-2b2b30?labelColor=1c1c1f)
@@ -23,7 +29,8 @@
 [Нагрузка](#-нагрузка-на-пк) ·
 [Безопасность](#-безопасность) ·
 [Вопросы](#-частые-вопросы) ·
-[Сборка](#-сборка-из-исходников)
+[Сборка](#-сборка-из-исходников) ·
+[Донат](#-поддержать-автора-и-заказать-разработку)
 
 </div>
 
@@ -181,6 +188,19 @@ cargo build --release
 | [`src/gui.rs`](src/gui.rs), [`src/tray.rs`](src/tray.rs) | команды пульта через окно программы, пункт трея |
 | [`packaging/windows/`](packaging/windows) | установщик и инструкция |
 | [`tools/screenshots.py`](tools/screenshots.py) | скриншоты для README на демо-данных |
+
+## 💛 Поддержать автора и заказать разработку
+
+Seb0g1 Musick бесплатный и будет бесплатным. Если пульт сэкономил вам пару проигранных раундов, поддержите автора:
+
+<p align="center"><a href="https://www.donationalerts.com/r/sebog"><img src="https://img.shields.io/badge/%F0%9F%92%9B%20%D0%97%D0%90%D0%94%D0%9E%D0%9D%D0%90%D0%A2%D0%98%D0%A2%D0%AC%20%D0%BD%D0%B0%20DonationAlerts-ff5f1f?style=for-the-badge&labelColor=1c1c1f" height="56" alt="Задонатить на DonationAlerts"></a></p>
+
+| | |
+|---|---|
+| 💸 **Донат** | [donationalerts.com/r/sebog](https://www.donationalerts.com/r/sebog) |
+| 🎮 **Стримы на Twitch** | [twitch.tv/seb0g1](https://www.twitch.tv/seb0g1) |
+| 🧑‍💻 **Портфолио** | [sebog1.ru](https://sebog1.ru) |
+| 🛒 **Заказать разработку** | [shop.sebog1.ru](https://shop.sebog1.ru) — сайты, боты, программы и доработки «под ключ» |
 
 ## 📄 Лицензия и авторство
 

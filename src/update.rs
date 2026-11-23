@@ -18,7 +18,9 @@ const ASSET: &str = concat!(env!("CARGO_PKG_NAME"), ".exe");
 const APK: &str = "yamusic-rs-arm64-v8a.apk";
 
 /// Проверка включена в настройках («Проверять обновления»).
-pub static ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+pub static ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// Проверять релизы на GitHub (у этой сборки своих релизов пока нет).
+const OWN_RELEASES: bool = false;
 
 /// Страница GitHub со всеми изменениями между запущенной версией и новой.
 pub fn changes_url(version: &str) -> String {
@@ -55,6 +57,10 @@ fn parse_version(s: &str) -> Option<(u32, u32, u32)> {
 
 /// Последний релиз, если он новее запущенной версии.
 pub fn check() -> Result<Option<Release>, String> {
+    // Seb0g1 Musick — своя сборка: релизы оригинального yamusic-rs её бы заменили и убрали управление с телефона.
+    if !OWN_RELEASES {
+        return Ok(None);
+    }
     let api = env!("CARGO_PKG_REPOSITORY").replace("https://github.com/", "https://api.github.com/repos/");
     let resp = client()?.get(format!("{api}/releases/latest")).send().map_err(|e| crate::config::chain(&e))?;
     // 404 — релизов ещё нет.

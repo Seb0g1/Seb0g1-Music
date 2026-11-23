@@ -21,6 +21,8 @@ base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 miniz_oxide = "0.8"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+# QR-код для подключения телефона (remote.rs), без зависимостей.
+qrcodegen = "1.8"
 
 [target.'cfg(windows)'.dependencies.windows-sys]
 version = "0.59"
@@ -41,6 +43,9 @@ features = [
   "Win32_UI_Controls_Dialogs",
   "Win32_UI_Shell_Common",
   "Win32_System_Com",
+  "Win32_NetworkManagement_IpHelper",
+  "Win32_NetworkManagement_Ndis",
+  "Win32_Networking_WinSock",
 ]
 
 [target.'cfg(target_os = "linux")'.dependencies]

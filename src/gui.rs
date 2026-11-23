@@ -1550,7 +1550,7 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
         None => retry_assets(&ui),
     }
     load_id_icons(&ui);
-    crate::update::ENABLED.store(cfg.check_updates, Ordering::Relaxed);
+    crate::update::ENABLED.store(false, Ordering::Relaxed);
     start_updates(&ui);
 
     crate::api::ALLOW_EXPLICIT.store(cfg.allow_explicit, Ordering::Relaxed);
@@ -2158,7 +2158,7 @@ fn install_tray(ui: &AppWindow, player: &Player) {
                 Event::PlayPause => ui.global::<App>().invoke_play_pause(),
                 Event::Prev => p.send(Cmd::Prev),
                 Event::Next => p.send(Cmd::Next),
-                Event::Updates => sys::open_url(concat!(env!("CARGO_PKG_REPOSITORY"), "/releases")),
+                Event::Phone => crate::remote::open_setup(),
                 Event::Terms => sys::open_url("https://yandex.ru/legal/music_mobile_agreement/"),
                 Event::Recommendations => sys::open_url("https://music.yandex.ru/legal/recommendations/ru/#music"),
                 Event::Support => sys::open_url(SUPPORT_CHAT),

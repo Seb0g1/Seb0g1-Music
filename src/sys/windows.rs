@@ -306,7 +306,7 @@ fn is_window(hwnd: isize) -> bool {
 pub fn claim_instance() -> bool {
     use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ALREADY_EXISTS};
     use windows_sys::Win32::System::Threading::CreateMutexW;
-    let name = wide(r"Local\yamusic_rs_single_instance");
+    let name = wide(r"Local\seb0g1_musick_single_instance");
     unsafe {
         let m = CreateMutexW(null(), 0, name.as_ptr());
         if GetLastError() == ERROR_ALREADY_EXISTS {

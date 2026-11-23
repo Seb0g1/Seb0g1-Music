@@ -6,11 +6,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Музыка">
+<meta name="apple-mobile-web-app-title" content="Musick">
 <meta name="theme-color" content="#0e0e10">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icon.png">
-<title>Музыка</title>
+<title>Seb0g1 Musick</title>
 <style>
   :root { --bg: #0e0e10; --card: #18181c; --card2: #202026; --text: #f4f4f6; --muted: #9a9aa5; --accent: #ffd43b; --like: #ff4d6d; --line: #2a2a31; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -68,8 +68,8 @@
 <body class="checking">
 <div class="wrap">
   <section class="pin" aria-label="Вход">
-    <h2 style="margin:0">Управление музыкой</h2>
-    <div style="color:var(--muted)">Введите PIN из файла remote.txt на ПК. Телефон запомнится — вводить его снова не придётся.</div>
+    <h2 style="margin:0">Seb0g1 Musick</h2>
+    <div style="color:var(--muted)">Введите PIN со страницы «Подключить телефон» на компьютере (значок в трее → «Подключить телефон…»). Телефон запомнится — вводить его снова не придётся.</div>
     <input id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="••••••">
     <button id="go">Войти</button>
     <div class="err" id="err"></div>
@@ -249,11 +249,14 @@
       // Ключ в адресе: «На экран "Домой"» сохранит его вместе со страницей.
       history.replaceState(null, "", "/#k=" + key);
       unlock(); sig = ""; loop();
-    } catch (e) { if (e.message === "pin") $("err").textContent = "Неверный PIN"; }
+    } catch (e) { document.body.className = "locked"; if (e.message === "pin") $("err").textContent = "Неверный PIN — возможно, его сменили. Откройте «Подключить телефон…» на компьютере."; }
   }
   $("go").onclick = login;
   $("pin").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
-  loop(); // проверка: если ключ или cookie есть, PIN не спросим
+  // QR-код со страницы подключения: адрес с #p=PIN — входим сами, PIN вводить не нужно.
+  const pinFromHash = (location.hash.match(/p=(\d{4,8})/) || [])[1];
+  if (pinFromHash && !key) { $("pin").value = pinFromHash; history.replaceState(null, "", "/"); login(); }
+  else loop(); // проверка: если ключ или cookie есть, PIN не спросим
 })();
 </script>
 </body>

@@ -27,7 +27,8 @@ pub enum Event {
     PlayPause,
     Prev,
     Next,
-    Updates,
+    /// «Подключить телефон»: страница с QR-кодом, адресом и PIN.
+    Phone,
     Terms,
     Recommendations,
     Support,
@@ -160,7 +161,7 @@ fn show_menu(hwnd: HWND) {
             AppendMenuW(m, MF_SEPARATOR, 0, null());
         };
         add(menu, 1, &tr(if s.minimized { "Развернуть" } else { "Свернуть" }), true);
-        add(menu, 2, &tr("Проверить обновления"), true);
+        add(menu, 2, "Подключить телефон…", true);
         sep(menu);
         add(menu, 3, &tr(if s.playing { "Пауза" } else { "Воспроизведение" }), true);
         add(menu, 4, &tr("Предыдущая песня"), s.can_prev);
@@ -183,7 +184,7 @@ fn show_menu(hwnd: HWND) {
         DestroyMenu(menu);
         let e = match cmd {
             1 => Event::Toggle,
-            2 => Event::Updates,
+            2 => Event::Phone,
             3 => Event::PlayPause,
             4 => Event::Prev,
             5 => Event::Next,

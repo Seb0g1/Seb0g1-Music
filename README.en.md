@@ -13,6 +13,7 @@ Pause, skip, volume, seek, likes, queue and search from an iPhone or Android ove
 ![Rust](https://img.shields.io/badge/Rust-1.92%2B-2b2b30?labelColor=1c1c1f&logo=rust)
 ![iPhone and Android](https://img.shields.io/badge/remote-iPhone%20%7C%20Android-2b2b30?labelColor=1c1c1f)
 [![GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-2b2b30?labelColor=1c1c1f)](LICENSE)
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-scanned-2b2b30?labelColor=1c1c1f&logo=virustotal)](https://www.virustotal.com/gui/file/b54ee56b4cca20b9f94e0cb6abb8110fb369209d295470ad0023439454166d02/detection)
 
 [Русский](README.md) · **English**
 
@@ -39,6 +40,10 @@ Spotify lets you skip a song on your computer from your phone. The Yandex Music 
 3. Start Seb0g1 Musick and sign in with your Yandex account. Full-length tracks need Yandex Plus, as in the official app.
 
 > Windows SmartScreen may warn that the installer is unsigned. Click **"More info" → "Run anyway"**.
+
+🛡 **Virus scan:** [VirusTotal report](https://www.virustotal.com/gui/file/b54ee56b4cca20b9f94e0cb6abb8110fb369209d295470ad0023439454166d02/detection) for installer 1.1.5.2.<br>
+SHA-256: `b54ee56b4cca20b9f94e0cb6abb8110fb369209d295470ad0023439454166d02`<br>
+Verify locally: `Get-FileHash .\Seb0g1-Musick-Setup-1.1.5.2.exe` in PowerShell.
 
 Requirements: Windows 10 or 11, 64-bit. Any phone with a browser: iPhone (Safari), Android (Chrome).
 

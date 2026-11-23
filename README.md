@@ -13,6 +13,7 @@
 ![Rust](https://img.shields.io/badge/Rust-1.92%2B-2b2b30?labelColor=1c1c1f&logo=rust)
 ![iPhone и Android](https://img.shields.io/badge/%D0%BF%D1%83%D0%BB%D1%8C%D1%82-iPhone%20%7C%20Android-2b2b30?labelColor=1c1c1f)
 [![GPL-3.0](https://img.shields.io/badge/%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-GPL--3.0-2b2b30?labelColor=1c1c1f)](LICENSE)
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-%D0%BF%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%B5%D0%BD%D0%BE-2b2b30?labelColor=1c1c1f&logo=virustotal)](https://www.virustotal.com/gui/file/b54ee56b4cca20b9f94e0cb6abb8110fb369209d295470ad0023439454166d02/detection)
 
 **Русский** · [English](README.en.md)
 
@@ -47,6 +48,10 @@
 3. Запустите Seb0g1 Musick и войдите в аккаунт Яндекса. Для полных треков нужна подписка Плюс — как и в официальном приложении.
 
 > Windows может показать «Windows защитила компьютер» — установщик не подписан сертификатом. Нажмите **«Подробнее» → «Выполнить в любом случае»**.
+
+🛡 **Проверка на вирусы:** [отчёт VirusTotal](https://www.virustotal.com/gui/file/b54ee56b4cca20b9f94e0cb6abb8110fb369209d295470ad0023439454166d02/detection) для установщика 1.1.5.2.<br>
+SHA-256: `b54ee56b4cca20b9f94e0cb6abb8110fb369209d295470ad0023439454166d02`<br>
+Сверить у себя: `Get-FileHash .\Seb0g1-Musick-Setup-1.1.5.2.exe` в PowerShell.
 
 Системные требования: Windows 10 или 11, 64 бит. Телефон — любой с браузером: iPhone (Safari), Android (Chrome).
 
@@ -139,7 +144,7 @@ PIN спрашивается только один раз: дальше теле
 <details>
 <summary><b>Почему Windows ругается на установщик?</b></summary>
 
-Установщик не подписан платным сертификатом разработчика. Код открыт — можно проверить и собрать самому (ниже).
+Установщик не подписан платным сертификатом разработчика. Проверьте его на [VirusTotal](https://www.virustotal.com/gui/file/b54ee56b4cca20b9f94e0cb6abb8110fb369209d295470ad0023439454166d02/detection) — или соберите сами из открытого кода (ниже).
 </details>
 
 <details>

@@ -1554,7 +1554,14 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
     start_updates(&ui);
 
     crate::api::ALLOW_EXPLICIT.store(cfg.allow_explicit, Ordering::Relaxed);
-    let player = Player::spawn(notifier());
+    // Телефон (remote.rs) узнаёт об изменениях через тот же сигнал, что и окно.
+    let player = {
+        let n = notifier();
+        Player::spawn(Arc::new(move || {
+            n();
+            crate::remote::poke();
+        }))
+    };
     player.send(Cmd::Volume(cfg.volume));
     if cfg.log_volume {
         player.send(Cmd::Loudness(Loudness::Decibels));
@@ -1951,6 +1958,7 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
         });
         install_tray(&ui, &player);
     }
+    install_remote(&ui, &player);
     #[cfg(not(windows))]
     {
         app.on_close(quit);
@@ -2085,6 +2093,29 @@ fn install_mpris(ui: &AppWindow, player: &Player) {
                 Event::Quit => quit(),
             }
         });
+    });
+}
+
+/// Управление с телефона (remote.rs): пауза и громкость — через окно, как у трея и медиаклавиш.
+fn install_remote(ui: &AppWindow, player: &Player) {
+    let weak = ui.as_weak();
+    let p = player.clone();
+    crate::remote::start(player.clone(), move |e| {
+        use crate::remote::Event;
+        match e {
+            Event::Next => p.send(Cmd::Next),
+            Event::Prev => p.send(Cmd::Prev),
+            Event::PlayPause => {
+                let _ = weak.upgrade_in_event_loop(|ui| ui.global::<App>().invoke_play_pause());
+            }
+            Event::Volume(v) => {
+                let _ = weak.upgrade_in_event_loop(move |ui| {
+                    let app = ui.global::<App>();
+                    app.set_volume(v);
+                    app.invoke_set_volume(v);
+                });
+            }
+        }
     });
 }
 

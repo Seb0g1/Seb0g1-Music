@@ -22,6 +22,7 @@ mod mpris;
 mod net;
 mod palette;
 mod player;
+mod remote;
 mod save;
 mod secret;
 mod stream;

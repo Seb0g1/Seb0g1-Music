@@ -34,9 +34,13 @@ Spotify lets you skip a song on your computer from your phone. The Yandex Music 
 **Seb0g1 Musick** fixes that. It is a Yandex Music client for Windows written in Rust that serves a tiny remote on your home network. Your phone opens it in the browser by scanning a QR code — no App Store or Google Play install. The interface is in Russian.
 
 <div align="center">
-<img src="docs/seb0g1/phone-remote.png" width="260" alt="Phone remote: cover, seek bar, buttons, volume, queue">
-&nbsp;&nbsp;&nbsp;
-<img src="docs/seb0g1/phone-search.png" width="260" alt="Track search on the phone">
+<img src="docs/seb0g1/phone-remote.png" width="220" alt="Phone remote: cover, seek bar, buttons and volume">
+&nbsp;
+<img src="docs/seb0g1/phone-lyrics.png" width="220" alt="Lyrics that follow the music">
+&nbsp;
+<img src="docs/seb0g1/phone-library.png" width="220" alt="Library: My Wave, moods and playlists">
+&nbsp;
+<img src="docs/seb0g1/phone-game.png" width="220" alt="Match mode with huge buttons">
 </div>
 
 ## ⬇️ Download and install
@@ -73,13 +77,17 @@ The PIN is asked only once: after that the phone is recognised by its own key, e
 
 | | |
 |---|---|
-| ⏯ **Play / pause / skip** | previous, pause, next |
-| 🔊 **Volume** | slider, synced with the desktop window |
-| ⏩ **Seek** | track position slider |
-| ❤️ **Like** | add the current track to "My likes" |
+| ⏯ **Play, pause, skip, seek, volume** | large buttons and sliders you can drag anywhere |
+| 👆 **Gesture cover** | swipe sideways to change the track, up and down for volume, double-tap to like |
+| 🎮 **Match mode** | huge Next, Pause and Back buttons you can hit without looking |
+| 🎤 **Lyrics** | lines follow the music, tap a line to jump to it |
+| 📚 **Library** | My Wave, moods, "My likes" and playlists |
+| 🔎 **Search** | results as you type; play, "play next" or "add to queue" |
 | 📋 **Queue** | next 30 tracks, tap to jump |
-| 🔎 **Search** | find a track, play it, "play next" or "add to queue" |
-| 🖼 **Cover and time** | what is playing and how much is left |
+| 🔀 **Shuffle and repeat** | same as in the desktop window |
+| 😴 **Sleep timer** | stops the music in 15, 30, 60 or 90 minutes |
+| ❤️ **Like and dislike** | plus a wave based on the current track |
+| 🖥 **Desktop and tablet** | player and section side by side, keyboard control |
 
 Everything else is a full Yandex Music client: My Wave, playlists, albums, artists, lyrics, equalizer, media keys, tray. It is based on [yamusic-rs](https://github.com/SpolzerMod/yamusic-rs) — see [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md) for the client itself.
 
@@ -162,7 +170,9 @@ The installer is built with [Inno Setup 6](https://jrsoftware.org/isinfo.php):
 | File | Purpose |
 |---|---|
 | [`src/remote.rs`](src/remote.rs) | remote HTTP server: PIN, device keys, long-poll, search, connect page, QR code, address picked from network adapters |
-| [`src/remote_page.html`](src/remote_page.html) | the phone remote |
+| [`src/netdiag.rs`](src/netdiag.rs) | "Why won't it connect?": network and firewall check with a Fix button |
+| [`src/update.rs`](src/update.rs) | one-click updates through the release installer |
+| [`src/remote_page.html`](src/remote_page.html) | the phone remote (Geologica font, SIL OFL 1.1) |
 | [`src/remote_setup.html`](src/remote_setup.html) | "Connect a phone" page on the PC |
 | [`src/gui.rs`](src/gui.rs), [`src/tray.rs`](src/tray.rs) | remote commands through the app window, tray item |
 | [`packaging/windows/`](packaging/windows) | installer and guide |

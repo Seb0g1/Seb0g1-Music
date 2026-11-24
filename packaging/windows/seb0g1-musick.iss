@@ -8,7 +8,7 @@
 
 #define AppName "Seb0g1 Musick"
 ; Та же версия, что в Cargo.toml (её сравнивает проверка обновлений).
-#define AppVersion "1.2.0"
+#define AppVersion "1.3.0"
 #define AppExe "Seb0g1 Musick.exe"
 #define Port "8787"
 
@@ -53,6 +53,7 @@ Name: "firewall"; Description: "Разрешить подключение тел
 [Files]
 Source: "..\..\target\release\yamusic-rs.exe"; DestDir: "{app}"; DestName: "{#AppExe}"; Flags: ignoreversion
 Source: "..\..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
+Source: "..\..\src\remote_font_OFL.txt"; DestDir: "{app}"; DestName: "Geologica-OFL.txt"; Flags: ignoreversion
 Source: "readme-ru.txt"; DestDir: "{app}"; DestName: "Как подключить телефон.txt"; Flags: ignoreversion
 
 [Icons]

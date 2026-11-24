@@ -2,258 +2,640 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Musick">
-<meta name="theme-color" content="#0e0e10">
+<meta name="theme-color" content="#2b2a33">
+<meta name="referrer" content="no-referrer">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/icon.png">
 <title>Seb0g1 Musick</title>
 <style>
-  :root { --bg: #0e0e10; --card: #18181c; --card2: #202026; --text: #f4f4f6; --muted: #9a9aa5; --accent: #ffd43b; --like: #ff4d6d; --line: #2a2a31; }
+  @font-face { font-family: Geologica; font-weight: 400 900; font-display: swap; src: url(/font-cyr.woff2) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+  @font-face { font-family: Geologica; font-weight: 400 900; font-display: swap; src: url(/font-lat.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215; }
+  /* Весь экран красится цветом обложки: --bg, --deep, --tint ставит скрипт (paint). */
+  :root { --bg: #2b2a33; --deep: #201f27; --tint: #e6e4f2; --ink: #fff; --dim: rgba(255,255,255,.74); --glass: rgba(255,255,255,.11); --glass2: rgba(255,255,255,.18); --on: #ffd43b; --like: #ff7b93;
+    --nav: 62px; --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px); --pad: 22px; --text: Geologica, -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   [hidden] { display: none !important; }
-  html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
-  body { padding: max(16px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom)); -webkit-user-select: none; user-select: none; }
-  .wrap { width: 100%; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
-  .top { display: grid; grid-template-columns: 92px 1fr 44px; gap: 14px; align-items: center; }
-  .cover { width: 92px; height: 92px; border-radius: 16px; background: var(--card) center/cover no-repeat; box-shadow: 0 10px 30px rgba(0,0,0,.45); display: grid; place-items: center; color: var(--muted); font-size: 34px; }
-  .meta { min-width: 0; }
-  .title { font-size: 19px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .artists { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-  button { appearance: none; border: 0; background: none; color: var(--text); padding: 0; cursor: pointer; touch-action: manipulation; font: inherit; }
-  button:active { transform: scale(.92); }
-  .like { width: 44px; height: 44px; display: grid; place-items: center; color: var(--muted); }
-  .like svg { width: 28px; height: 28px; }
-  .like.on { color: var(--like); }
-  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; background: transparent; margin: 0; }
-  input[type=range]::-webkit-slider-runnable-track { height: 5px; border-radius: 5px; background: linear-gradient(to right, var(--text) var(--p, 0%), var(--line) var(--p, 0%)); }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--text); margin-top: -7.5px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
-  .times { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-top: -2px; font-variant-numeric: tabular-nums; }
-  .ctrl { display: flex; align-items: center; justify-content: space-between; padding: 0 10px; }
-  .side { width: 60px; height: 60px; display: grid; place-items: center; border-radius: 50%; }
-  .side svg { width: 32px; height: 32px; }
-  .main { width: 78px; height: 78px; display: grid; place-items: center; border-radius: 50%; background: var(--text); color: var(--bg); }
-  .main svg { width: 36px; height: 36px; }
-  .vol { display: flex; align-items: center; gap: 12px; color: var(--muted); }
-  .vol svg { width: 20px; height: 20px; flex: none; }
-  .status { text-align: center; color: var(--muted); font-size: 13px; min-height: 18px; margin-top: -8px; }
-  .tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--card); border-radius: 12px; padding: 3px; }
-  .tabs button { padding: 9px; border-radius: 9px; color: var(--muted); font-weight: 600; font-size: 15px; }
-  .tabs button.on { background: var(--card2); color: var(--text); }
-  .search { display: flex; gap: 8px; }
-  .search input { flex: 1; min-width: 0; font-size: 16px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); -webkit-user-select: text; user-select: text; }
-  .search button { padding: 0 16px; border-radius: 12px; background: var(--accent); color: #111; font-weight: 700; }
-  .list { display: flex; flex-direction: column; }
-  .row { display: grid; grid-template-columns: 46px 1fr auto; gap: 12px; align-items: center; padding: 8px 2px; border-bottom: 1px solid var(--line); }
-  .row .pic { width: 46px; height: 46px; border-radius: 8px; background: var(--card) center/cover no-repeat; }
-  .row .t { min-width: 0; text-align: left; }
-  .row .t b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .row .t span { display: block; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .acts { display: flex; gap: 4px; }
-  .acts button { width: 38px; height: 38px; border-radius: 10px; background: var(--card); display: grid; place-items: center; color: var(--muted); }
-  .acts svg { width: 20px; height: 20px; }
-  .acts .done { color: var(--accent); }
-  .dur { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
-  .empty { color: var(--muted); text-align: center; padding: 22px 0; font-size: 14px; }
-  .pin { display: none; flex-direction: column; gap: 14px; text-align: center; padding-top: 18vh; }
-  .pin input { font-size: 30px; letter-spacing: 10px; text-align: center; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); width: 100%; -webkit-user-select: text; user-select: text; }
-  .pin button { background: var(--accent); color: #111; font-weight: 700; font-size: 17px; padding: 14px; border-radius: 14px; }
-  .err { color: #ff6b6b; min-height: 20px; font-size: 14px; }
-  body.locked .player { display: none; } body.locked .pin { display: flex; }
-  body.checking .player, body.checking .pin { visibility: hidden; }
+  html, body { margin: 0; height: 100%; background: var(--deep); color: var(--ink); font: 400 16px/1.35 var(--text); overscroll-behavior: none; }
+  body { -webkit-user-select: none; user-select: none; overflow: hidden; }
+  button { appearance: none; border: 0; background: none; color: inherit; padding: 0; font: inherit; cursor: pointer; touch-action: manipulation; text-align: inherit; }
+  button:disabled { opacity: .35; cursor: default; }
+  svg { display: block; fill: currentColor; }
+  img { display: block; }
+  :focus-visible { outline: 2px solid var(--on); outline-offset: 3px; border-radius: 10px; }
+  .ico { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; flex: none; transition: background-color .15s, transform .12s; }
+  .ico svg { width: 25px; height: 25px; }
+  .ico:active { background: var(--glass); transform: scale(.92); }
+  .ico.on { color: var(--on); }
+
+  /* фон и заливка при смене трека */
+  .ground, .flood { position: fixed; inset: 0; background: linear-gradient(var(--c1), var(--c2)); }
+  .ground { --c1: var(--bg); --c2: var(--deep); }
+  .flood { clip-path: circle(0 at 50% 70%); }
+  .flood.go { transition: clip-path .62s cubic-bezier(.5,0,.15,1); }
+
+  .app { position: fixed; inset: 0; display: grid; grid-template-rows: minmax(0,1fr) auto auto; max-width: 560px; margin: 0 auto; }
+  .views { position: relative; min-height: 0; }
+  .view { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: calc(var(--safe-t) + 18px) var(--pad) 28px; }
+
+  /* плеер */
+  .player { padding: calc(var(--safe-t) + 8px) var(--pad) 12px; gap: 12px; }
+  .bar { display: flex; align-items: center; gap: 2px; margin: 0 -10px 0 0; }
+  .from { flex: 1; min-width: 0; font-weight: 600; font-size: 15px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 8px 0; }
+  .stage { flex: 1; min-height: 120px; position: relative; display: grid; place-items: center; touch-action: none; container-type: size; }
+  .plate { position: relative; width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); border-radius: 22px; cursor: grab; will-change: transform; }
+  .plate img, .plate .none { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; background: var(--glass); box-shadow: 0 22px 50px rgba(0,0,0,.34); -webkit-user-drag: none; pointer-events: none; }
+  .plate .none { display: grid; place-items: center; color: var(--dim); }
+  .plate .none svg { width: 34%; height: 34%; }
+  .peek { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 22px; overflow: hidden; background: var(--glass); display: grid; place-items: center; opacity: 0; }
+  .peek svg { width: 30%; height: 30%; }
+  .plate.snap, .plate.snap .peek { transition: transform .28s cubic-bezier(.2,.8,.2,1), opacity .28s; }
+  .hud { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; opacity: 0; transition: opacity .16s; }
+  .hud.show { opacity: 1; }
+  .hud b { font-weight: 800; font-size: 76px; letter-spacing: -.04em; line-height: 1; background: rgba(0,0,0,.62); padding: 22px 34px 26px; border-radius: 30px; font-variant-numeric: tabular-nums; }
+  .burst { position: absolute; width: 120px; height: 120px; margin: -60px; color: var(--like); pointer-events: none; animation: burst .8s cubic-bezier(.2,.9,.3,1) forwards; filter: drop-shadow(0 8px 18px rgba(0,0,0,.4)); }
+  @keyframes burst { 0% { transform: scale(.2) rotate(-16deg); opacity: 0; } 25% { transform: scale(1.15) rotate(4deg); opacity: 1; } 60% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.1) translateY(-30px); opacity: 0; } }
+  .tip { position: absolute; left: 12px; right: 12px; bottom: 12px; background: rgba(0,0,0,.72); border-radius: 16px; padding: 12px 8px 12px 16px; font-size: 14px; display: flex; gap: 8px; align-items: center; z-index: 2; }
+  .tip span { flex: 1; } .tip button { padding: 8px 12px; font-weight: 700; color: var(--on); }
+
+  .name, .keys, .vol, .seekbox { position: relative; z-index: 1; }
+  .name { display: flex; align-items: center; gap: 6px; margin-right: -10px; }
+  .name > div { flex: 1; min-width: 0; }
+  h1 { margin: 0; font-size: clamp(22px, 6.6vw, 30px); line-height: 1.12; font-weight: 750; letter-spacing: -.028em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  h1 small { font-size: .62em; font-weight: 500; letter-spacing: -.01em; color: var(--dim); margin-left: .35em; }
+  .artists { margin-top: 4px; font-size: 17px; line-height: 1.3; color: var(--dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .like svg { width: 30px; height: 30px; }
+  .like.on { color: var(--like); } .like .o { display: block; } .like .f { display: none; } .like.on .o { display: none; } .like.on .f { display: block; }
+
+  /* ползунок-«фейдер»: тянется за любое место */
+  .slab { position: relative; height: 34px; display: flex; align-items: center; touch-action: none; cursor: pointer; flex: 1; border-radius: 17px; }
+  .slab i { position: absolute; left: 0; right: 0; height: 18px; clip-path: inset(5px 0 round 4px); background: var(--glass2); transition: clip-path .16s; }
+  .slab i::after { content: ""; position: absolute; inset: 0; background: var(--ink); transform-origin: 0 50%; transform: scaleX(var(--v, 0)); }
+  .slab.drag i { clip-path: inset(0 round 9px); }
+  .slab.dim { opacity: .5; }
+  .time { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; margin-top: -4px; }
+  .keys { display: flex; align-items: center; justify-content: space-between; }
+  .keys > * { flex: none; }
+  .keys .step { width: clamp(52px, 16vw, 64px); height: clamp(52px, 16vw, 64px); display: grid; place-items: center; border-radius: 50%; transition: transform .12s, background-color .15s; }
+  .keys .step svg { width: 38px; height: 38px; }
+  .keys .step:active { transform: scale(.9); background: var(--glass); }
+  .keys .pp { width: clamp(70px, 21vw, 82px); height: clamp(70px, 21vw, 82px); border-radius: 50%; background: var(--tint); color: var(--deep); display: grid; place-items: center; transition: transform .12s, border-radius .25s cubic-bezier(.3,1.4,.5,1); }
+  .keys .pp svg { width: 42px; height: 42px; }
+  .keys .pp.play { border-radius: 34%; }
+  .keys .pp:active { transform: scale(.93); }
+  .keys .pp.wait svg { animation: wait 1s ease-in-out infinite alternate; }
+  @keyframes wait { to { opacity: .35; } }
+  .dot { position: relative; } .dot.on::after { content: ""; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--on); }
+  .one { position: absolute; font-size: 10px; font-weight: 800; left: 50%; top: 50%; transform: translate(-50%,-50%); }
+  .vol { display: flex; align-items: center; gap: 4px; margin: 0 -12px; color: var(--dim); }
+
+  /* текст песни */
+  .lyrics { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 34% 0; -webkit-mask: linear-gradient(transparent, #000 14%, #000 84%, transparent); mask: linear-gradient(transparent, #000 14%, #000 84%, transparent); scrollbar-width: none; }
+  .lyrics::-webkit-scrollbar { display: none; }
+  .lyrics button, .lyrics p { display: block; width: 100%; margin: 0; padding: 7px 0; font-size: clamp(21px, 6.4vw, 27px); line-height: 1.2; font-weight: 700; letter-spacing: -.022em; color: rgba(255,255,255,.5); transition: color .25s; overflow-wrap: anywhere; }
+  .lyrics p { color: var(--ink); font-size: 19px; font-weight: 500; line-height: 1.4; padding: 2px 0; min-height: 1em; }
+  .lyrics .now { color: var(--on); } .lyrics .was { color: rgba(255,255,255,.72); }
+  .lyrics footer { font-size: 13px; color: var(--dim); padding-top: 22px; }
+
+  /* мини-плеер и разделы */
+  .mini { display: grid; grid-template-columns: 48px minmax(0,1fr) auto auto; gap: 12px; align-items: center; margin: 0 12px 8px; padding: 8px 4px 8px 8px; border-radius: 18px; background: var(--glass2); position: relative; overflow: hidden; }
+  .mini .pic img, .mini .pic .none { width: 48px; height: 48px; }
+  .mini b, .mini span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini b { font-weight: 650; font-size: 15px; } .mini span { font-size: 13px; color: var(--dim); }
+  .mini::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--ink); transform-origin: 0 50%; transform: scaleX(var(--v, 0)); }
+  .nav { display: grid; grid-template-columns: repeat(4, 1fr); padding: 0 8px var(--safe-b); height: calc(var(--nav) + var(--safe-b)); }
+  .nav button { display: grid; place-items: center; align-content: center; gap: 3px; font-size: 12px; font-weight: 550; color: var(--dim); border-radius: 16px; }
+  .nav svg { width: 25px; height: 25px; }
+  .nav [aria-current=page] { color: var(--ink); } .nav [aria-current=page] svg { color: var(--on); }
+
+  h2 { margin: 0 0 14px; font-size: 30px; line-height: 1.1; font-weight: 750; letter-spacing: -.03em; overflow-wrap: anywhere; }
+  h3 { margin: 28px 0 12px; font-size: 19px; font-weight: 700; letter-spacing: -.018em; }
+  .row { display: grid; grid-template-columns: 52px minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 7px 0; width: 100%; }
+  .row > .pic { position: relative; } .pic img, .pic .none { width: 52px; height: 52px; border-radius: 12px; object-fit: cover; background: var(--glass); display: grid; place-items: center; color: var(--dim); }
+  .pic .none svg { width: 24px; height: 24px; }
+  .row .t { min-width: 0; padding: 4px 0; } .row .t b, .row .t span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .t b { font-weight: 600; } .row .t span { color: var(--dim); font-size: 14px; margin-top: 1px; }
+  .row.now .t b { color: var(--on); }
+  .row .end { display: flex; align-items: center; color: var(--dim); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .row .end .ico { width: 42px; height: 42px; } .row .end .ico svg { width: 23px; height: 23px; } .row .end .ok { color: var(--on); }
+  .row:active .t b { opacity: .7; }
+  .empty { color: var(--dim); padding: 18px 0; max-width: 34ch; } .empty button { margin-top: 14px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 0 22px; border-radius: 24px; background: var(--tint); color: var(--deep); font-weight: 700; } .btn svg { width: 22px; height: 22px; }
+  .btn.soft { background: var(--glass2); color: var(--ink); } .btn:active { transform: scale(.97); }
+  .btns { display: flex; gap: 10px; margin: 0 0 14px; } .btns .btn { flex: 1; padding: 0 12px; }
+  .find { position: sticky; top: calc(var(--safe-t) * -1 - 18px); z-index: 2; }
+  .find input { width: 100%; height: 54px; border: 0; border-radius: 18px; background: var(--glass2); color: var(--ink); font: 500 17px var(--text); padding: 0 52px 0 18px; -webkit-user-select: text; user-select: text; -webkit-appearance: none; }
+  .find input::placeholder { color: var(--dim); } .find input:focus { outline: 2px solid var(--on); } .find input::-webkit-search-cancel-button { display: none; }
+  .find .ico { position: absolute; right: 4px; top: 4px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; } .chips button { padding: 10px 16px; border-radius: 20px; background: var(--glass); font-size: 15px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wave { display: flex; align-items: center; gap: 18px; width: 100%; padding: 18px 20px; border-radius: 26px; background: var(--tint); color: var(--deep); }
+  .wave svg { width: 54px; height: 54px; flex: none; } .wave b { display: block; font-size: 24px; font-weight: 780; letter-spacing: -.03em; line-height: 1.1; } .wave span { font-size: 14px; opacity: .8; }
+  .wave:active { transform: scale(.985); }
+  .vibes { display: flex; gap: 14px; overflow-x: auto; margin: 16px calc(var(--pad) * -1) 0; padding: 0 var(--pad) 4px; scrollbar-width: none; scroll-snap-type: x proximity; } .vibes::-webkit-scrollbar { display: none; }
+  .vibes button { flex: none; width: 104px; scroll-snap-align: start; scroll-margin-left: var(--pad); } .vibes img, .vibes .none { width: 104px; height: 104px; border-radius: 22px; object-fit: cover; background: var(--glass); } .vibes .round { border-radius: 50%; }
+  .vibes b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; font-weight: 600; line-height: 1.2; margin-top: 8px; }
+  .back { display: flex; align-items: center; gap: 4px; margin: -8px 0 6px -10px; font-weight: 600; color: var(--dim); min-height: 44px; padding-right: 14px; } .back svg { width: 26px; height: 26px; }
+  .sk { height: 52px; border-radius: 14px; background: var(--glass); margin: 7px 0; opacity: .7; }
+
+  /* режим катки: жмём не глядя */
+  .game { position: fixed; inset: 0; z-index: 20; background: #000; padding: calc(var(--safe-t) + 10px) 12px calc(var(--safe-b) + 12px); display: grid; grid-template-rows: auto auto 1fr 1.5fr; gap: 12px; }
+  .game .bar { margin: 0 0 0 10px; } .game .bar div { flex: 1; min-width: 0; } .game .bar b, .game .bar span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .game .bar b { font-weight: 700; font-size: 18px; } .game .bar span { color: rgba(255,255,255,.66); font-size: 14px; }
+  .game .pair { display: grid; grid-template-columns: 1fr 1.35fr; gap: 12px; min-height: 0; }
+  .pad { border-radius: 34px; display: grid; place-items: center; align-content: center; gap: 8px; font-weight: 750; font-size: 22px; letter-spacing: -.02em; background: var(--bg); min-height: 0; width: 100%; transition: filter .12s; }
+  .pad:active { filter: brightness(1.5); } .pad svg { width: 64px; height: 64px; } .pad.big { background: var(--tint); color: var(--deep); font-size: 34px; } .pad.big svg { width: 110px; height: 110px; }
+  .game .slab { height: 74px; border-radius: 26px; overflow: hidden; background: rgba(255,255,255,.12); }
+  .game .slab i, .game .slab.drag i { height: 100%; clip-path: none; background: none; } .game .slab i::after { background: var(--bg); }
+  .game .slab em { position: relative; font-style: normal; font-weight: 700; font-size: 18px; padding-left: 22px; pointer-events: none; }
+
+  /* шторка и сообщения */
+  dialog { border: 0; padding: 0; color: var(--ink); background: none; width: 100%; max-width: 560px; margin: auto auto 0; max-height: 86dvh; }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  .sheet { background: var(--deep); border-radius: 28px 28px 0 0; padding: 22px var(--pad) calc(var(--safe-b) + 20px); }
+  .sheet h3 { margin: 0 0 10px; } .sheet .act { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 54px; font-weight: 550; font-size: 17px; } .sheet .act svg { width: 25px; height: 25px; flex: none; color: var(--dim); } .sheet .act span { margin-left: auto; color: var(--dim); font-weight: 400; }
+  .sheet .act.on { color: var(--on); } .sheet .act.on svg { color: var(--on); }
+  .times { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; } .times button { min-height: 52px; border-radius: 16px; background: var(--glass2); text-align: center; font-weight: 650; } .times .wide { grid-column: 1 / -1; }
+  .toast { position: fixed; left: 50%; bottom: calc(var(--nav) + var(--safe-b) + 14px + var(--lift, 0px)); transform: translate(-50%, 20px); background: #111; color: #fff; padding: 13px 20px; border-radius: 18px; font-size: 15px; font-weight: 550; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 30; max-width: calc(100% - 40px); width: max-content; text-align: center; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .lost { position: fixed; left: 50%; top: calc(var(--safe-t) + 10px); transform: translateX(-50%); z-index: 31; background: #111; border-radius: 18px; padding: 11px 14px 11px 18px; display: flex; gap: 14px; align-items: center; font-size: 15px; width: max-content; max-width: calc(100% - 24px); } .lost button { color: var(--on); font-weight: 700; padding: 6px; }
+
+  /* вход */
+  .login { position: fixed; inset: 0; z-index: 25; background: var(--deep); overflow-y: auto; padding: calc(var(--safe-t) + 9vh) 26px 40px; }
+  .login > div { max-width: 400px; margin: 0 auto; } .login img { width: 76px; height: 76px; border-radius: 20px; margin-bottom: 26px; } .login h1 { font-size: 36px; margin-bottom: 12px; } .login p { color: var(--dim); margin: 0 0 26px; }
+  .login input { width: 100%; height: 76px; border: 0; border-radius: 22px; background: var(--glass2); color: var(--ink); text-align: center; font: 700 36px var(--text); letter-spacing: .3em; padding-left: .3em; -webkit-user-select: text; user-select: text; } .login input:focus { outline: 2px solid var(--on); }
+  .login .btn { width: 100%; min-height: 58px; border-radius: 29px; margin-top: 14px; font-size: 18px; } .err { color: #ffb0b0; min-height: 22px; margin-top: 14px; font-size: 15px; }
+  body.checking .app, body.checking .login, body.locked .app { visibility: hidden; }
+  body:not(.locked) .login { display: none; }
+
+  /* компьютер и планшет: плеер и раздел рядом */
+  @media (min-width: 900px) {
+    .app { max-width: 1240px; grid-template-columns: minmax(360px, 460px) minmax(0, 1fr); grid-template-rows: minmax(0,1fr) auto; column-gap: 40px; padding: 0 28px; }
+    .views { grid-column: 1 / -1; grid-row: 1; display: contents; }
+    .view { position: relative; inset: auto; min-height: 0; }
+    .player { display: flex !important; grid-column: 1; grid-row: 1 / 3; padding-bottom: 34px; padding-top: 26px; } .view:not(.player) { grid-column: 2; grid-row: 1; }
+    .nav { grid-column: 2; grid-row: 2; max-width: 420px; width: 100%; grid-template-columns: repeat(3, 1fr); height: 76px; } .nav [data-v=player] { display: none; } .mini { display: none !important; } h1 { font-size: 34px; }
+  }
+  /* телефон боком */
+  @media (max-width: 899px) and (max-height: 520px) and (orientation: landscape) {
+    .app { max-width: none; padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left); --nav: 48px; } .nav { height: 48px; } .nav button { display: flex; gap: 8px; } .nav svg { width: 20px; height: 20px; }
+    .player { display: grid; grid-template-columns: min(44vw, 100dvh - 70px) minmax(0,1fr); grid-template-rows: auto 1fr auto auto auto; column-gap: 26px; gap: 2px 26px; padding-bottom: 4px; } .player[hidden] { display: none !important; }
+    .stage { grid-row: 1 / 6; grid-column: 1; min-height: 0; } .player > :not(.stage) { grid-column: 2; } .name { align-self: center; } h1 { font-size: 22px; -webkit-line-clamp: 1; } .keys .pp { width: 62px; height: 62px; } .keys .step { width: 52px; height: 52px; }
+    .game { grid-template-rows: auto auto 1fr; } .game .big { grid-row: 3; grid-column: 1; width: auto; } .game .pair { grid-row: 3; grid-column: 1; width: 48%; } .game .big { margin-left: calc(48% + 12px); }
+  }
+  @media (hover: hover) { .ico:hover, .step:hover { background: var(--glass); } .row:hover .t b { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body class="checking">
-<div class="wrap">
-  <section class="pin" aria-label="Вход">
-    <h2 style="margin:0">Seb0g1 Musick</h2>
-    <div style="color:var(--muted)">Введите PIN со страницы «Подключить телефон» на компьютере (значок в трее → «Подключить телефон…»). Телефон запомнится — вводить его снова не придётся.</div>
-    <input id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="••••••">
-    <button id="go">Войти</button>
-    <div class="err" id="err"></div>
-  </section>
-  <section class="player wrap" aria-label="Плеер">
-    <div class="top">
-      <div class="cover" id="cover">♪</div>
-      <div class="meta"><div class="title" id="title">—</div><div class="artists" id="artists"></div></div>
-      <button class="like" id="like" aria-label="Мне нравится"><svg viewBox="0 0 24 24" fill="currentColor"><path id="likep" d="M12 21s-7.5-4.6-9.6-9.3C.9 8.2 3 4.5 6.6 4.5c2.1 0 3.8 1.2 5.4 3 1.6-1.8 3.3-3 5.4-3 3.6 0 5.7 3.7 4.2 7.2C19.5 16.4 12 21 12 21z"/></svg></button>
-    </div>
-    <div>
-      <input type="range" id="seek" min="0" max="1000" step="1" value="0" aria-label="Перемотка">
-      <div class="times"><span id="pos">0:00</span><span id="dur">0:00</span></div>
-    </div>
-    <div class="ctrl">
-      <button class="side" id="prev" aria-label="Назад"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
-      <button class="main" id="pp" aria-label="Играть"><svg id="ppi" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
-      <button class="side" id="next" aria-label="Вперёд"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
-    </div>
-    <div class="vol">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9z"/></svg>
-      <input type="range" id="vol" min="0" max="100" step="1" value="60" aria-label="Громкость">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9zm11.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM13 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
-    </div>
-    <div class="status" id="status"></div>
-    <div class="tabs" role="tablist">
-      <button id="tq" class="on" role="tab">Очередь</button>
-      <button id="ts" role="tab">Поиск</button>
-    </div>
-    <div id="pq" class="list"></div>
-    <div id="ps" hidden>
-      <form class="search" id="sf"><input id="q" type="search" enterkeyhint="search" placeholder="Трек или исполнитель" autocomplete="off"><button type="submit">Найти</button></form>
-      <div id="sr" class="list"></div>
-    </div>
-  </section>
-</div>
+<div class="ground"></div><div class="flood" id="flood"></div>
+
+<main class="app">
+  <div class="views">
+    <section class="view player" id="v-player" aria-label="Плеер">
+      <div class="bar">
+        <div class="from" id="from"></div>
+        <button class="ico" id="bLyrics" aria-label="Текст песни" aria-pressed="false" hidden><svg viewBox="0 0 24 24"><path d="M4 5.500A1.500 1.500 0 0 1 5.500 4h13a1.500 1.500 0 0 1 0 3h-13A1.500 1.500 0 0 1 4 5.500zm0 6.500a1.500 1.500 0 0 1 1.500-1.500h9a1.500 1.500 0 0 1 0 3h-9A1.500 1.500 0 0 1 4 12zm1.500 5a1.500 1.500 0 0 0 0 3h11a1.500 1.500 0 0 0 0-3z"/></svg></button>
+        <button class="ico" id="bGame" aria-label="Режим катки"><svg viewBox="0 0 24 24"><path d="M7.500 6h9A5.500 5.500 0 0 1 22 11.600l.4 4.200a2.900 2.900 0 0 1-5.200 2L15.600 16H8.400l-1.600 1.800a2.900 2.900 0 0 1-5.200-2L2 11.600A5.500 5.500 0 0 1 7.500 6zm.2 3.200v1.600H6.100v1.600h1.600V14h1.600v-1.600h1.600v-1.600H9.300V9.200zm7.200 3.400a1.200 1.200 0 1 0 0-.1zm2.400-2.300a1.200 1.200 0 1 0 0-.1z"/></svg></button>
+        <button class="ico" id="bMore" aria-label="Ещё"><svg viewBox="0 0 24 24"><path d="M5 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg></button>
+      </div>
+      <div class="stage" id="stage">
+        <div class="plate" id="plate"><div class="peek" id="peekL"></div><div class="peek" id="peekR"></div></div>
+        <div class="lyrics" id="lyrics" hidden></div>
+        <div class="hud" id="hud"><b></b></div>
+        <div class="tip" id="tip" hidden><span>Смахните обложку: вбок — другой трек, вверх и вниз — громкость. Два касания — лайк.</span><button id="tipOk">Понятно</button></div>
+      </div>
+      <div class="name"><div><h1 id="title">Подключаюсь…</h1><div class="artists" id="artists"></div></div>
+        <button class="ico like" id="like" aria-label="Нравится" aria-pressed="false"><svg class="o" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="fill:none"><path d="M12 20.300S3.600 15.200 3.600 9.300A4.700 4.700 0 0 1 12 6.500a4.700 4.700 0 0 1 8.400 2.800c0 5.900-8.400 11-8.400 11z"/></svg><svg class="f" viewBox="0 0 24 24"><path d="M12 21.300S2.600 15.700 2.600 9.200A5.700 5.700 0 0 1 12 5.100a5.700 5.700 0 0 1 9.400 4.100c0 6.500-9.400 12.100-9.400 12.100z"/></svg></button></div>
+      <div class="seekbox"><div class="slab" id="seek" role="slider" tabindex="0" aria-label="Перемотка" aria-valuemin="0" aria-valuemax="100"><i></i></div><div class="time"><span id="pos">0:00</span><span id="left">0:00</span></div></div>
+      <div class="keys">
+        <button class="ico dot" id="shuf" aria-label="Перемешать" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M17 3l4 4-4 4V8.500h-1.600a3 3 0 0 0-2.500 1.300l-4 6a5.500 5.500 0 0 1-4.600 2.500H3v-2.500h1.300a3 3 0 0 0 2.500-1.300l4-6A5.500 5.500 0 0 1 15.400 6H17zM3 6h1.300a5.500 5.500 0 0 1 4.300 2.100L7.100 10.300l-.3-.5a3 3 0 0 0-2.500-1.300H3zm14 7l4 4-4 4v-2.700h-1.600a5.500 5.500 0 0 1-4.400-2.200l1.500-2.200.4.600a3 3 0 0 0 2.500 1.300H17z"/></svg></button>
+        <button class="step" id="prev" aria-label="Предыдущий трек"><svg viewBox="0 0 24 24"><path d="M6.500 5A1.500 1.500 0 0 1 8 6.500v4.300l9.400-5.900A1 1 0 0 1 19 5.700v12.600a1 1 0 0 1-1.600.8L8 13.200v4.300a1.500 1.500 0 0 1-3 0v-11A1.500 1.500 0 0 1 6.500 5z"/></svg></button>
+        <button class="pp play" id="pp" aria-label="Играть"><svg viewBox="0 0 24 24" id="ppi"></svg></button>
+        <button class="step" id="next" aria-label="Следующий трек"><svg viewBox="0 0 24 24"><path d="M17.500 5A1.500 1.500 0 0 0 16 6.500v4.300L6.600 4.900A1 1 0 0 0 5 5.700v12.600a1 1 0 0 0 1.600.8l9.400-5.900v4.300a1.500 1.500 0 0 0 3 0v-11A1.500 1.500 0 0 0 17.500 5z"/></svg></button>
+        <button class="ico dot" id="rep" aria-label="Повтор"><svg viewBox="0 0 24 24"><path d="M16 2.500l4.500 4L16 10.500V7.800H8A3.500 3.500 0 0 0 4.500 11.300v.7H2v-.7a6 6 0 0 1 6-6h8zM8 21.500l-4.500-4L8 13.500v2.700h8a3.500 3.500 0 0 0 3.500-3.500V12H22v.7a6 6 0 0 1-6 6H8z"/></svg><span class="one" id="repOne" hidden>1</span></button>
+      </div>
+      <div class="vol">
+        <button class="ico" id="volDown" aria-label="Тише"><svg viewBox="0 0 24 24"><path d="M4 9.200A1.200 1.200 0 0 1 5.200 8H8l4.300-3.700a1 1 0 0 1 1.700.8v13.800a1 1 0 0 1-1.700.8L8 16H5.200A1.200 1.200 0 0 1 4 14.800z"/></svg></button>
+        <div class="slab" id="vol" role="slider" tabindex="0" aria-label="Громкость" aria-valuemin="0" aria-valuemax="100"><i></i></div>
+        <button class="ico" id="volUp" aria-label="Громче"><svg viewBox="0 0 24 24"><path d="M2 9.200A1.200 1.200 0 0 1 3.200 8H6l4.300-3.700a1 1 0 0 1 1.700.8v13.800a1 1 0 0 1-1.700.8L6 16H3.200A1.200 1.200 0 0 1 2 14.800zM15 7.600a5.500 5.500 0 0 1 0 8.800l-1.300-1.800a3.300 3.300 0 0 0 0-5.200zm2.800-3.400a9.700 9.700 0 0 1 0 15.600l-1.300-1.800a7.500 7.500 0 0 0 0-12z"/></svg></button>
+      </div>
+    </section>
+
+    <section class="view" id="v-queue" aria-label="Очередь" hidden><div class="scroll view" style="display:block"><h2>Дальше играет</h2><div id="queue"></div></div></section>
+
+    <section class="view" id="v-search" aria-label="Поиск" hidden><div class="scroll view" style="display:block">
+      <form class="find" id="sf" role="search"><input id="q" type="search" enterkeyhint="search" placeholder="Трек или исполнитель" aria-label="Что найти" autocomplete="off" autocorrect="off"><button type="button" class="ico" id="qx" aria-label="Очистить" hidden><svg viewBox="0 0 24 24"><path d="M6.400 5L12 10.600 17.600 5 19 6.400 13.400 12l5.600 5.600-1.400 1.400L12 13.400 6.400 19 5 17.600 10.600 12 5 6.400z"/></svg></button></form>
+      <div id="recent"></div><div id="found" style="margin-top:12px" aria-live="polite"></div></div></section>
+
+    <section class="view" id="v-library" aria-label="Медиатека" hidden><div class="scroll view" style="display:block" id="lib"></div></section>
+  </div>
+
+  <div class="mini" id="mini" hidden><button class="pic" id="miniPic" tabindex="-1" aria-hidden="true"></button><button id="miniT" aria-label="Открыть плеер"><b></b><span></span></button><button class="ico" id="miniP" aria-label="Пауза"><svg viewBox="0 0 24 24"></svg></button><button class="ico" id="miniX" aria-label="Следующий трек"><svg viewBox="0 0 24 24"><path d="M17.500 5A1.500 1.500 0 0 0 16 6.500v4.300L6.600 4.900A1 1 0 0 0 5 5.700v12.600a1 1 0 0 0 1.600.8l9.400-5.900v4.300a1.500 1.500 0 0 0 3 0v-11A1.500 1.500 0 0 0 17.500 5z"/></svg></button></div>
+  <nav class="nav" aria-label="Разделы">
+    <button data-v="player"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 6.200a.9.9 0 0 1 1.400-.7l5 3.800a.9.9 0 0 1 0 1.400l-5 3.800a.9.9 0 0 1-1.400-.7z"/></svg>Плеер</button>
+    <button data-v="queue"><svg viewBox="0 0 24 24"><path d="M4.200 5h15.600a1.200 1.200 0 0 1 0 2.400H4.200a1.200 1.200 0 0 1 0-2.400zm0 5.800h9.600a1.200 1.200 0 0 1 0 2.400H4.200a1.200 1.200 0 0 1 0-2.400zm0 5.800h7.600a1.200 1.200 0 0 1 0 2.400H4.200a1.200 1.200 0 0 1 0-2.400zM15.500 13.400a.8.8 0 0 1 1.200-.7l4.500 2.700a.8.8 0 0 1 0 1.400l-4.500 2.700a.8.8 0 0 1-1.200-.7z"/></svg>Очередь</button>
+    <button data-v="search"><svg viewBox="0 0 24 24"><path d="M10.500 3a7.500 7.500 0 0 1 5.900 12.100l4.200 4.200-1.700 1.700-4.200-4.200A7.500 7.500 0 1 1 10.500 3zm0 2.400a5.100 5.100 0 1 0 0 10.200 5.100 5.100 0 0 0 0-10.200z"/></svg>Поиск</button>
+    <button data-v="library"><svg viewBox="0 0 24 24"><path d="M4.200 4a1.200 1.200 0 0 1 1.200 1.200v13.600a1.200 1.200 0 0 1-2.400 0V5.200A1.200 1.200 0 0 1 4.200 4zm5 0a1.200 1.200 0 0 1 1.200 1.200v13.600a1.200 1.200 0 0 1-2.400 0V5.200A1.200 1.200 0 0 1 9.200 4zm4.700.9a1.200 1.200 0 0 1 1.500.8l4.200 12.900a1.200 1.200 0 0 1-2.300.7L13.100 6.400a1.200 1.200 0 0 1 .8-1.500z"/></svg>Медиатека</button>
+  </nav>
+</main>
+
+<section class="game" id="game" aria-label="Режим катки" hidden>
+  <div class="bar"><div><b id="gT"></b><span id="gA"></span></div><button class="ico like" id="gLike" aria-label="Нравится"><svg class="o" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="fill:none"><path d="M12 20.300S3.600 15.200 3.600 9.300A4.700 4.700 0 0 1 12 6.500a4.700 4.700 0 0 1 8.400 2.800c0 5.900-8.400 11-8.400 11z"/></svg><svg class="f" viewBox="0 0 24 24"><path d="M12 21.300S2.600 15.700 2.600 9.200A5.700 5.700 0 0 1 12 5.100a5.700 5.700 0 0 1 9.400 4.100c0 6.500-9.400 12.100-9.400 12.100z"/></svg></button><button class="ico" id="gX" aria-label="Выйти из режима катки"><svg viewBox="0 0 24 24"><path d="M6.400 5L12 10.600 17.600 5 19 6.400 13.400 12l5.600 5.600-1.400 1.400L12 13.400 6.400 19 5 17.600 10.600 12 5 6.400z"/></svg></button></div>
+  <div class="slab" id="gVol" role="slider" tabindex="0" aria-label="Громкость" aria-valuemin="0" aria-valuemax="100"><i></i><em></em></div>
+  <div class="pair"><button class="pad" id="gPrev"><svg viewBox="0 0 24 24"><path d="M6.500 5A1.500 1.500 0 0 1 8 6.500v4.300l9.400-5.900A1 1 0 0 1 19 5.700v12.600a1 1 0 0 1-1.600.8L8 13.200v4.300a1.500 1.500 0 0 1-3 0v-11A1.500 1.500 0 0 1 6.500 5z"/></svg>Назад</button><button class="pad" id="gPP"><svg viewBox="0 0 24 24"></svg><span></span></button></div>
+  <button class="pad big" id="gNext"><svg viewBox="0 0 24 24"><path d="M17.500 5A1.500 1.500 0 0 0 16 6.500v4.300L6.600 4.900A1 1 0 0 0 5 5.700v12.600a1 1 0 0 0 1.600.8l9.400-5.900v4.300a1.500 1.500 0 0 0 3 0v-11A1.500 1.500 0 0 0 17.500 5z"/></svg>Дальше</button>
+</section>
+
+<dialog id="dlg" aria-label="Действия"><div class="sheet" id="sheet"></div></dialog>
+<div class="toast" id="toast" role="status"></div>
+<div class="lost" id="lost" role="alert" hidden><span>Нет связи с компьютером</span><button id="retry">Повторить</button></div>
+
+<section class="login" aria-label="Вход"><div>
+  <img src="/icon.png" alt="">
+  <h1>Подключите пульт</h1>
+  <p>Введите PIN. Он на компьютере: значок Musick в трее, «Подключить телефон…». Телефон запомнится.</p>
+  <input id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000" aria-label="PIN">
+  <button class="btn" id="go">Войти</button>
+  <div class="err" id="err" role="alert"></div>
+</div></section>
+
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const PLAY = '<path d="M8 5v14l11-7z"/>', PAUSE = '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>';
-  const I_NEXT = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h12v2H3zm0 4h12v2H3zm0 4h8v2H3zm14-1v-3h2v3h3v2h-3v3h-2v-3h-3v-2z"/></svg>';
-  const I_END = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zm0 4h18v2H3zm0 4h10v2H3zm13 1l5 3-5 3z"/></svg>';
+  const svg = (d) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + d + "</svg>";
+  const P = {
+    play: '<path d="M7 4.600a1.300 1.300 0 0 1 2-1.100l11.200 7.400a1.300 1.300 0 0 1 0 2.200L9 20.500a1.300 1.300 0 0 1-2-1.100z"/>',
+    pause: '<rect x="5" y="4" width="5" height="16" rx="1.600"/><rect x="14" y="4" width="5" height="16" rx="1.600"/>',
+    next: '<path d="M17.500 5A1.500 1.500 0 0 0 16 6.500v4.300L6.600 4.900A1 1 0 0 0 5 5.700v12.600a1 1 0 0 0 1.600.8l9.400-5.900v4.300a1.500 1.500 0 0 0 3 0v-11A1.500 1.500 0 0 0 17.500 5z"/>',
+    prev: '<path d="M6.500 5A1.500 1.500 0 0 1 8 6.500v4.300l9.400-5.900A1 1 0 0 1 19 5.700v12.600a1 1 0 0 1-1.600.8L8 13.200v4.300a1.500 1.500 0 0 1-3 0v-11A1.500 1.500 0 0 1 6.500 5z"/>',
+    heart: '<path d="M12 21.300S2.600 15.700 2.600 9.200A5.700 5.700 0 0 1 12 5.100a5.700 5.700 0 0 1 9.400 4.100c0 6.500-9.400 12.100-9.400 12.100z"/>',
+    note: '<path d="M9 4.500v10.200A3.800 3.800 0 1 0 11 18V8.600l8-1.700v5.800a3.800 3.800 0 1 0 2 3.300V2z"/>',
+    up: '<path d="M4 5h16v2.200H4zm0 5.300h9v2.200H4zm0 5.300h9v2.200H4zm13-4.600l4.500 4.500-1.600 1.600-1.800-1.800V20h-2.200v-4.700l-1.800 1.800-1.600-1.600z"/>',
+    end: '<path d="M4 5h16v2.200H4zm0 5.300h16v2.200H4zm0 5.300h9v2.200H4zM17 13.500h2.200v3h3v2.200h-3v3H17v-3h-3v-2.200h3z"/>',
+    wave: '<path d="M12 1.500l1.800 6.400 4.700-4.700-2.700 6 6.700-.9-6 3.700 6 3.700-6.700-.9 2.700 6-4.700-4.700L12 22.500l-1.800-6.400-4.700 4.700 2.700-6-6.700.9 6-3.700-6-3.700 6.700.9-2.700-6 4.700 4.700z"/>',
+    down: '<path d="M3 4.500h4V15H3zM9 4h8.200a2.400 2.400 0 0 1 2.300 1.800l1.700 6.700a2 2 0 0 1-2 2.500h-5l.9 4.300a1.800 1.800 0 0 1-3.200 1.500L9 15.500z"/>',
+    moon: '<path d="M13.500 2.500a9.700 9.700 0 1 0 8 14.200A8.500 8.500 0 0 1 13.500 2.500z"/>',
+    help: '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 15.500a1.300 1.300 0 1 1 0 2.600 1.300 1.300 0 0 1 0-2.600zm.2-12c2.300 0 4 1.400 4 3.500 0 1.600-.9 2.500-2 3.200-.9.600-1.100.9-1.100 1.800v.6h-2.300v-.8c0-1.600.7-2.400 1.800-3.200.9-.6 1.200-.9 1.200-1.600 0-.8-.7-1.400-1.700-1.400-1.100 0-1.800.7-1.800 1.800H7.900c0-2.300 1.800-3.900 4.300-3.900z" fill-rule="evenodd"/>',
+    back: '<path d="M14.700 5.300l1.600 1.600L11.200 12l5.100 5.100-1.600 1.600L8 12z"/>',
+    shuffle: '<path d="M17 3l4 4-4 4V8.500h-1.600a3 3 0 0 0-2.500 1.300l-4 6a5.500 5.500 0 0 1-4.600 2.500H3v-2.500h1.300a3 3 0 0 0 2.500-1.300l4-6A5.500 5.500 0 0 1 15.400 6H17zM3 6h1.300a5.500 5.500 0 0 1 4.300 2.100L7.100 10.300l-.3-.5a3 3 0 0 0-2.500-1.300H3zm14 7l4 4-4 4v-2.700h-1.600a5.500 5.500 0 0 1-4.400-2.200l1.500-2.200.4.600a3 3 0 0 0 2.500 1.300H17z"/>',
+  };
   const store = { get(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }, set(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} } };
+  const calm = matchMedia("(prefers-reduced-motion: reduce)"), wide = matchMedia("(min-width: 900px)");
+  const mmss = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+  const buzz = (ms) => { try { navigator.vibrate && navigator.vibrate(ms || 8); } catch (e) {} };
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  // Картинки — только по https (обложки Яндекса) или со своего же адреса.
+  const okUrl = (u) => typeof u === "string" && /^(https:\/\/|\/)/.test(u) ? u : "";
+  function pic(url, cls, icon) { const u = okUrl(url); if (!u) { const n = el("div", "none " + (cls || "")); n.innerHTML = svg(P[icon || "note"]); return n; } const i = el("img", cls); i.alt = ""; i.decoding = "async"; i.onerror = () => i.replaceWith(pic("", cls, icon)); i.src = u; return i; }
+
+  // ---- связь ----
   // Ключ устройства: из адреса иконки «Домой» (#k=…), из памяти страницы или из cookie (её шлёт браузер сам).
   const fromHash = (location.hash.match(/k=([0-9a-f]{64})/) || [])[1] || "";
   let key = fromHash || store.get("key");
   if (key) { store.set("key", key); if (!fromHash) history.replaceState(null, "", "/#k=" + key); }
-  let st = null, sig = "", at = 0, polling = false, ctl = null, volDrag = false, seekDrag = false, volTimer = 0, lastCover = "", queueSig = "";
-  const mmss = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
-  const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
+  let st = null, sig = "", at = 0, polling = false, ctl = null;
   function lock(msg) { document.body.className = "locked"; $("err").textContent = msg || ""; stop(); }
   function unlock() { document.body.className = ""; $("err").textContent = ""; }
-
   async function api(path, opts, pin) {
     const headers = {}; if (key) headers["X-Key"] = key; if (pin) headers["X-Pin"] = pin;
     const r = await fetch(path, Object.assign({ headers, cache: "no-store", credentials: "same-origin" }, opts || {}));
     if (r.status === 401) { if (!pin) { key = ""; store.set("key", ""); lock(""); } throw new Error("pin"); }
-    if (r.status === 429) { lock("Слишком много попыток — подождите 10 минут"); throw new Error("locked"); }
+    if (r.status === 429) { lock("Слишком много попыток. Подождите 10 минут."); throw new Error("locked"); }
     if (!r.ok) { const e = new Error("HTTP " + r.status); e.status = r.status; throw e; }
     return r.json();
   }
-
-  function render() {
-    if (!st) return;
-    $("title").textContent = st.hasTrack ? st.title : "Ничего не играет";
-    $("artists").textContent = st.hasTrack ? st.artists : "Включите музыку или найдите трек";
-    if (st.cover !== lastCover) { lastCover = st.cover; $("cover").style.backgroundImage = st.cover ? 'url("' + st.cover + '")' : ""; $("cover").textContent = st.cover ? "" : "♪"; }
-    $("ppi").innerHTML = st.playing ? PAUSE : PLAY;
-    $("pp").setAttribute("aria-label", st.playing ? "Пауза" : "Играть");
-    $("like").classList.toggle("on", !!st.liked);
-    $("like").disabled = !st.hasTrack;
-    if (!volDrag) { const v = Math.round(st.volume * 100); $("vol").value = v; $("vol").style.setProperty("--p", v + "%"); }
-    $("status").textContent = st.loading ? "Загрузка…" : "";
-    const qs = (st.queue || []).map((t) => t.id).join(",");
-    if (qs !== queueSig) { queueSig = qs; renderQueue(); }
-    tick();
-  }
-  function tick() {
-    if (!st || seekDrag) return;
-    const pos = Math.min(st.duration || 0, st.position + (st.playing ? (Date.now() - at) / 1000 : 0));
-    $("pos").textContent = mmss(pos); $("dur").textContent = mmss(st.duration);
-    const p = st.duration ? (pos / st.duration * 1000) : 0;
-    $("seek").value = p; $("seek").style.setProperty("--p", (p / 10) + "%");
-  }
-  setInterval(() => { if (!document.hidden && st && st.playing) tick(); }, 1000);
-
-  function row(t, acts) {
-    return '<div class="row" data-id="' + esc(t.id) + '"><button class="pic" data-play style="background-image:' + (t.cover ? "url(&quot;" + esc(t.cover) + "&quot;)" : "none") + '"></button>' +
-      '<button class="t" data-play><b>' + esc(t.title) + '</b><span>' + esc(t.artists) + '</span></button>' + acts + '</div>';
-  }
-  function renderQueue() {
-    const q = (st && st.queue) || [];
-    $("pq").innerHTML = q.length ? q.map((t, i) => row(t, '<span class="dur">' + mmss(t.duration) + '</span>').replace('class="row"', 'class="row" data-i="' + i + '"')).join("") : '<div class="empty">Очередь пуста — найдите трек во вкладке «Поиск»</div>';
-  }
-  $("pq").addEventListener("click", (e) => {
-    const r = e.target.closest(".row"); if (!r || !e.target.closest("[data-play]")) return;
-    cmd("jump", "&i=" + r.dataset.i);
-  });
-
-  // Один долгий запрос: ПК отвечает, только когда меняется трек, пауза, громкость, лайк или очередь.
+  const why = (e) => e.status === 409 ? "Войдите в аккаунт Яндекса в программе на компьютере." : e.status === 502 ? "Яндекс не ответил. Попробуйте ещё раз." : "Нет связи с компьютером.";
+  // Один долгий запрос: компьютер отвечает, только когда что-то изменилось.
   async function loop() {
     if (polling) return; polling = true;
     while (polling && !document.hidden) {
       try {
         ctl = new AbortController();
         const s = await api("/api/state?wait=" + (sig ? 1 : 0) + "&sig=" + encodeURIComponent(sig), { signal: ctl.signal });
-        st = s; sig = s.sig; at = Date.now(); unlock(); render();
+        $("lost").hidden = true; unlock(); take(s);
       } catch (e) {
         if (e.message === "pin" || e.message === "locked" || e.name === "AbortError") break;
-        document.body.className = ""; $("status").textContent = "Нет связи с ПК — проверьте Wi-Fi";
-        await new Promise((r) => setTimeout(r, 3000));
+        document.body.className = ""; $("lost").hidden = false; sig = "";
+        await new Promise((r) => { const t = setTimeout(r, 3000); $("retry").onclick = () => { clearTimeout(t); r(); }; });
       }
     }
     polling = false;
   }
   function stop() { polling = false; if (ctl) ctl.abort(); }
   document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); else if (!document.body.classList.contains("locked")) { sig = ""; loop(); } });
-
   async function cmd(what, extra) {
-    try { await api("/api/cmd?do=" + what + (extra || ""), { method: "POST" }); return true; } catch (e) { return false; }
+    try { await api("/api/cmd?do=" + what + (extra || ""), { method: "POST" }); return true; }
+    catch (e) { if (e.message !== "pin" && e.message !== "locked") toast(e.status === 400 ? "Не получилось. Обновите список и попробуйте ещё раз." : "Команда не дошла: нет связи с компьютером."); return false; }
   }
-  $("pp").onclick = () => { if (st) { st.playing = !st.playing; at = Date.now(); render(); } cmd("playpause"); };
-  $("next").onclick = () => cmd("next");
-  $("prev").onclick = () => cmd("prev");
-  $("like").onclick = () => { if (st && st.hasTrack) { st.liked = !st.liked; render(); cmd("like"); } };
+  let toastT = 0;
+  function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2400); }
 
-  const vol = $("vol");
-  vol.addEventListener("input", () => {
-    volDrag = true; vol.style.setProperty("--p", vol.value + "%");
-    if (!volTimer) volTimer = setTimeout(() => { volTimer = 0; cmd("volume", "&v=" + (vol.value / 100).toFixed(2)); }, 150);
-  });
-  vol.addEventListener("change", () => { clearTimeout(volTimer); volTimer = 0; cmd("volume", "&v=" + (vol.value / 100).toFixed(2)); setTimeout(() => { volDrag = false; }, 400); });
-
-  // Перемотка: пока палец на ползунке, показываем время; команда уходит один раз, когда его отпустили.
-  const seek = $("seek");
-  seek.addEventListener("input", () => {
-    seekDrag = true; seek.style.setProperty("--p", (seek.value / 10) + "%");
-    if (st) $("pos").textContent = mmss(seek.value / 1000 * st.duration);
-  });
-  seek.addEventListener("change", () => {
-    if (st && st.duration) { const sec = seek.value / 1000 * st.duration; st.position = sec; at = Date.now(); cmd("seek", "&v=" + sec.toFixed(1)); }
-    seekDrag = false; tick();
-  });
-
-  function tab(which) {
-    $("tq").classList.toggle("on", which === "q"); $("ts").classList.toggle("on", which === "s");
-    $("pq").hidden = which !== "q"; $("ps").hidden = which !== "s";
-    if (which === "s") $("q").focus();
+  // ---- цвет ----
+  // Обложка задаёт тон, а светлоту держим сами: белый текст читается на любом треке.
+  function tone([r, g, b]) {
+    const lin = (v) => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; };
+    const [R, G, B] = [lin(r), lin(g), lin(b)];
+    const l = Math.cbrt(.4122214708 * R + .5363325363 * G + .0514459929 * B), m = Math.cbrt(.2119034982 * R + .6806995451 * G + .1073969566 * B), s = Math.cbrt(.0883024619 * R + .2817188376 * G + .6299787005 * B);
+    const a = 1.9779984951 * l - 2.428592205 * m + .4505937099 * s, bb = .0259040371 * l + .7827717662 * m - .808675766 * s;
+    return { c: Math.hypot(a, bb), h: Math.atan2(bb, a) };
   }
-  $("tq").onclick = () => tab("q"); $("ts").onclick = () => tab("s");
-
-  $("sf").addEventListener("submit", async (e) => {
-    e.preventDefault(); $("q").blur();
-    const q = $("q").value.trim(); if (!q) return;
-    $("sr").innerHTML = '<div class="empty">Ищем…</div>';
-    try {
-      const r = await api("/api/search?q=" + encodeURIComponent(q));
-      $("sr").innerHTML = r.tracks.length ? r.tracks.map((t) => row(t, '<span class="acts"><button data-act="next_up" aria-label="Играть следующим">' + I_NEXT + '</button><button data-act="queue" aria-label="В конец очереди">' + I_END + '</button></span>')).join("") : '<div class="empty">Ничего не нашлось</div>';
-    } catch (err) {
-      $("sr").innerHTML = '<div class="empty">' + (err.status === 409 ? "Войдите в аккаунт в программе на ПК" : "Поиск не удался — попробуйте ещё раз") + '</div>';
+  function oklch(L, C, h) {
+    for (; C > 0; C -= .006) {
+      const a = C * Math.cos(h), b = C * Math.sin(h), l = (L + .3963377774 * a + .2158037573 * b) ** 3, m = (L - .1055613458 * a - .0638541728 * b) ** 3, s = (L - .0894841775 * a - 1.291485548 * b) ** 3;
+      const rgb = [4.0767416621 * l - 3.3077115913 * m + .2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - .3413193965 * s, -.0041960863 * l - .7034186147 * m + 1.707614701 * s];
+      if (rgb.every((v) => v >= -.0005 && v <= 1.0005)) return "#" + rgb.map((v) => { v = clamp(v, 0, 1); v = v <= .0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - .055; return Math.round(v * 255).toString(16).padStart(2, "0"); }).join("");
     }
+    const v = Math.round(L * 255 * .9).toString(16).padStart(2, "0"); return "#" + v + v + v;
+  }
+  let painted = "", touch = [.5, .7];
+  addEventListener("pointerdown", (e) => { touch = [e.clientX / innerWidth, e.clientY / innerHeight]; }, true);
+  function paint(color) {
+    const t = tone(color || [124, 120, 150]), c = Math.min(t.c * 1.15, .155), grey = t.c < .025;
+    const set = { "--bg": oklch(.48, grey ? .012 : Math.max(c, .06), t.h), "--deep": oklch(.29, grey ? .01 : Math.max(c * .72, .035), t.h), "--tint": oklch(.93, grey ? .008 : Math.min(c, .055), t.h) };
+    const id = Object.values(set).join(); if (id === painted) return;
+    const first = !painted; painted = id;
+    const apply = () => { const r = document.documentElement.style; for (const k in set) r.setProperty(k, set[k]); document.querySelector("meta[name=theme-color]").content = set["--bg"]; };
+    const f = $("flood");
+    if (first || calm.matches || document.hidden) { apply(); return; }
+    // Новый цвет разливается от места, которого коснулись.
+    f.classList.remove("go"); f.style.setProperty("--c1", set["--bg"]); f.style.setProperty("--c2", set["--deep"]);
+    const at = "at " + touch[0] * 100 + "% " + touch[1] * 100 + "%"; f.style.clipPath = "circle(0 " + at + ")"; f.getBoundingClientRect(); f.classList.add("go"); f.style.clipPath = "circle(150% " + at + ")";
+    setTimeout(() => { if (painted === id) { apply(); f.classList.remove("go"); f.style.clipPath = "circle(0 " + at + ")"; } }, 640);
+  }
+
+  // ---- плеер ----
+  const plate = $("plate");
+  let queueSig = "", coverUrl = null;
+  function take(s) {
+    const same = st && st.id === s.id; st = s; sig = s.sig; at = Date.now();
+    if (!same) { lyr = null; plateHome(); if (lyricsOn) openLyrics(); }
+    render();
+  }
+  function setCover(url) {
+    url = okUrl(url); if (url === coverUrl) return; coverUrl = url;
+    const big = pic(url, ""), old = plate.querySelector(":scope > img, :scope > .none"); big.draggable = false;
+    old ? old.replaceWith(big) : plate.append(big); $("miniPic").replaceChildren(pic(url, ""));
+  }
+  function render() {
+    const has = st.hasTrack;
+    $("title").textContent = has ? st.title : st.loggedIn ? "Ничего не играет" : "Войдите в аккаунт";
+    if (has && st.version) $("title").append(el("small", "", st.version));
+    $("artists").textContent = has ? st.artists : st.loggedIn ? "Включите волну или плейлист в медиатеке" : "Откройте Seb0g1 Musick на компьютере";
+    $("from").textContent = has ? st.source : "Seb0g1 Musick";
+    setCover(has ? st.cover : ""); paint(has ? st.color : null);
+    const icon = st.playing ? P.pause : P.play, word = st.playing ? "Пауза" : "Играть";
+    $("ppi").innerHTML = icon; $("pp").setAttribute("aria-label", word); $("pp").classList.toggle("play", !st.playing); $("pp").classList.toggle("wait", !!st.loading);
+    for (const b of ["like", "gLike"]) { $(b).classList.toggle("on", has && !!st.liked); $(b).setAttribute("aria-pressed", has && !!st.liked); $(b).disabled = !has; }
+    $("shuf").disabled = !st.isList; $("shuf").classList.toggle("on", !!st.shuffle && st.isList); $("shuf").setAttribute("aria-pressed", !!st.shuffle);
+    $("rep").classList.toggle("on", st.repeat !== "off"); $("repOne").hidden = st.repeat !== "one"; $("rep").setAttribute("aria-label", "Повтор: " + ({ off: "выключен", all: "всё", one: "один трек" })[st.repeat]);
+    $("bLyrics").hidden = !(has && st.hasLyrics); if ($("bLyrics").hidden && lyricsOn) closeLyrics();
+    const mt = $("miniT"); mt.children[0].textContent = has ? st.title : "Ничего не играет"; mt.children[1].textContent = has ? st.artists : "";
+    $("miniP").firstChild.innerHTML = icon; $("miniP").setAttribute("aria-label", word);
+    $("gT").textContent = has ? st.title : "Ничего не играет"; $("gA").textContent = has ? st.artists : ""; $("gPP").children[0].innerHTML = icon; $("gPP").children[1].textContent = word;
+    showVolume(st.volume);
+    const qs = st.id + "|" + (st.queue || []).map((t) => t.id).join(); if (qs !== queueSig) { queueSig = qs; renderQueue(); }
+    markNow(); tick();
+  }
+  const now = () => !st || !st.hasTrack ? 0 : Math.min(st.duration || 0, st.position + (st.playing && !st.loading ? (Date.now() - at) / 1000 : 0));
+  function tick() {
+    if (!st) return; const p = now(), dur = st.hasTrack ? st.duration : 0, v = dur ? p / dur : 0;
+    if (!seek.dragging) { seek.set(v); $("pos").textContent = mmss(p); $("left").textContent = dur ? "−" + mmss(dur - p) : "0:00"; }
+    $("mini").style.setProperty("--v", v.toFixed(4));
+    follow(p);
+  }
+  setInterval(() => { if (!document.hidden && st && st.playing) tick(); }, 500);
+
+  // Ползунок: abs — палец задаёт место (перемотка), иначе — сдвиг (громкость не прыгнет от случайного касания).
+  function slab(node, { abs, step, text, input, commit }) {
+    const o = { dragging: false, v: 0, set(v) { o.v = clamp(v || 0, 0, 1); node.style.setProperty("--v", o.v.toFixed(4)); node.setAttribute("aria-valuenow", Math.round(o.v * 100)); node.setAttribute("aria-valuetext", text(o.v)); } };
+    let x0 = 0, v0 = 0, w = 1;
+    const at = (e) => abs ? clamp((e.clientX - x0) / w, 0, 1) : clamp(v0 + (e.clientX - x0) / w, 0, 1);
+    node.addEventListener("pointerdown", (e) => { if (e.button) return; const r = node.getBoundingClientRect(); w = r.width || 1; x0 = abs ? r.left : e.clientX; v0 = o.v; o.dragging = true; node.classList.add("drag"); node.setPointerCapture(e.pointerId); if (abs) { o.set(at(e)); input(o.v); } });
+    node.addEventListener("pointermove", (e) => { if (!o.dragging) return; o.set(at(e)); input(o.v); });
+    const up = (ok) => () => { if (!o.dragging) return; o.dragging = false; node.classList.remove("drag"); if (ok) { commit(o.v); buzz(); } else tick(); };
+    node.addEventListener("pointerup", up(true)); node.addEventListener("pointercancel", up(false));
+    node.addEventListener("keydown", (e) => { const d = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key]; if (!d) return; e.preventDefault(); e.stopPropagation(); o.set(o.v + d * step()); input(o.v); commit(o.v); });
+    return o;
+  }
+  const seek = slab($("seek"), { abs: true, step: () => 5 / ((st && st.duration) || 100), text: (v) => mmss(v * ((st && st.duration) || 0)),
+    input: (v) => { if (st) { $("pos").textContent = mmss(v * st.duration); $("left").textContent = "−" + mmss((1 - v) * st.duration); } },
+    commit: (v) => { if (st && st.duration) jumpTo(v * st.duration); } });
+  function jumpTo(sec) { st.position = sec; at = Date.now(); cmd("seek", "&v=" + sec.toFixed(1)); tick(); }
+  // Громкость: не чаще семи раз в секунду, последнее значение уходит всегда.
+  let volT = 0, volHold = 0;
+  function showVolume(v) { if (volHold > Date.now() || vol.dragging || gVol.dragging) return; vol.set(v); gVol.set(v); $("gVol").lastChild.textContent = "Громкость " + Math.round(v * 100); }
+  function sendVolume(v, last) {
+    v = clamp(v, 0, 1); volHold = Date.now() + 900; if (st) st.volume = v; vol.set(v); gVol.set(v); $("gVol").lastChild.textContent = "Громкость " + Math.round(v * 100);
+    const send = () => { volT = 0; cmd("volume", "&v=" + (st ? st.volume : v).toFixed(2)); };
+    if (last) { clearTimeout(volT); send(); } else if (!volT) volT = setTimeout(send, 150);
+  }
+  const vOpt = { abs: false, step: () => .05, text: (v) => Math.round(v * 100) + " %", input: (v) => sendVolume(v), commit: (v) => sendVolume(v, true) };
+  const vol = slab($("vol"), vOpt), gVol = slab($("gVol"), vOpt);
+  $("volDown").onclick = () => { sendVolume((st ? st.volume : .5) - .05, true); buzz(); };
+  $("volUp").onclick = () => { sendVolume((st ? st.volume : .5) + .05, true); buzz(); };
+
+  function playPause() { if (!st) return; st.position = now(); st.playing = !st.playing; at = Date.now(); render(); buzz(12); cmd("playpause"); }
+  // Следующий трек показываем сразу, не дожидаясь компьютера.
+  function next() {
+    buzz(12); const n = st && st.queue && st.queue[0];
+    if (n && st.repeat !== "one") { st = Object.assign({}, st, { id: n.id, title: n.title, version: "", artists: n.artists, cover: n.cover, color: n.color || st.color, duration: n.duration, position: 0, liked: false, loading: true, hasLyrics: false, queue: st.queue.slice(1) }); at = Date.now(); lyr = null; render(); }
+    cmd("next");
+  }
+  function prev() { buzz(12); if (st) { st.position = 0; at = Date.now(); tick(); } cmd("prev"); }
+  function like(x, y) {
+    if (!st || !st.hasTrack) return; st.liked = !st.liked; render(); buzz(st.liked ? 18 : 8); cmd("like");
+    if (x != null && st.liked && !calm.matches) { const h = el("div", "burst"); h.innerHTML = svg(P.heart); h.style.left = x + "px"; h.style.top = y + "px"; $("stage").append(h); setTimeout(() => h.remove(), 820); }
+  }
+  for (const id of ["pp", "miniP", "gPP"]) $(id).onclick = playPause;
+  for (const id of ["next", "miniX", "gNext"]) $(id).onclick = next;
+  for (const id of ["prev", "gPrev"]) $(id).onclick = prev;
+  for (const id of ["like", "gLike"]) $(id).onclick = () => like();
+  $("shuf").onclick = () => { st.shuffle = !st.shuffle; render(); buzz(); cmd("shuffle", "&v=" + (st.shuffle ? 1 : 0)); toast(st.shuffle ? "Вперемешку" : "По порядку"); };
+  $("rep").onclick = () => { st.repeat = { off: "all", all: "one", one: "off" }[st.repeat]; render(); buzz(); cmd("repeat", "&v=" + st.repeat); toast({ off: "Без повтора", all: "Повторять всё", one: "Повторять трек" }[st.repeat]); };
+
+  // ---- обложка-площадка: смахнуть вбок — трек, вверх и вниз — громкость, два касания — лайк ----
+  let g = null, lastTap = 0;
+  function plateHome() { plate.classList.remove("snap"); plate.style.transform = ""; $("peekL").style.opacity = $("peekR").style.opacity = 0; }
+  function hud(t) { $("hud").classList.toggle("show", t != null); if (t != null) $("hud").firstChild.textContent = t; }
+  plate.addEventListener("pointerdown", (e) => {
+    if (e.button || !st) return; plate.setPointerCapture(e.pointerId); plate.classList.remove("snap");
+    g = { x: e.clientX, y: e.clientY, t: Date.now(), w: plate.clientWidth, v: st.volume, dir: "" };
+    const n = st.queue && st.queue[0]; $("peekR").replaceChildren(n && okUrl(n.cover) ? pic(n.cover.replace("100x100", "400x400")) : icon(P.next)); $("peekL").replaceChildren(icon(P.prev));
   });
-  $("sr").addEventListener("click", async (e) => {
-    const r = e.target.closest(".row"); if (!r) return;
-    const act = e.target.closest("[data-act]");
-    const id = encodeURIComponent(r.dataset.id);
-    if (act) { if (await cmd(act.dataset.act, "&id=" + id)) { act.classList.add("done"); } return; }
-    if (e.target.closest("[data-play]")) { cmd("play", "&id=" + id); tab("q"); }
+  function icon(d) { const s = el("span"); s.innerHTML = svg(d); return s.firstChild; }
+  plate.addEventListener("pointermove", (e) => {
+    if (!g) return; const dx = e.clientX - g.x, dy = e.clientY - g.y;
+    if (!g.dir && Math.hypot(dx, dy) > 12) g.dir = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    if (g.dir === "x") { plate.style.transform = "translateX(" + dx + "px)"; $("peekL").style.transform = "translateX(calc(-100% - 16px))"; $("peekR").style.transform = "translateX(calc(100% + 16px))"; $("peekR").style.opacity = dx < 0 ? 1 : 0; $("peekL").style.opacity = dx > 0 ? 1 : 0; }
+    if (g.dir === "y") { const v = clamp(g.v - dy / 320, 0, 1); hud(Math.round(v * 100)); sendVolume(v); }
+  });
+  function drop(e, cancel) {
+    if (!g) return; const { dir, w, x, t } = g, dx = e.clientX - x; g = null; hud(null);
+    if (dir === "y") { sendVolume(st.volume, true); return; }
+    if (dir === "x") {
+      plate.classList.add("snap"); const fast = Math.abs(dx) > 40 && Date.now() - t < 260, go = !cancel && (Math.abs(dx) > w * .28 || fast);
+      if (!go) { plate.style.transform = ""; $("peekL").style.opacity = $("peekR").style.opacity = 0; return; }
+      plate.style.transform = "translateX(" + (dx < 0 ? "calc(-100% - 16px)" : "calc(100% + 16px)") + ")";
+      setTimeout(() => { plateHome(); dx < 0 ? next() : prev(); }, calm.matches ? 0 : 240); return;
+    }
+    if (cancel) return; const n = Date.now(); if (n - lastTap < 320) { lastTap = 0; const r = $("stage").getBoundingClientRect(); like(e.clientX - r.left, e.clientY - r.top); } else lastTap = n;
+  }
+  plate.addEventListener("pointerup", (e) => drop(e)); plate.addEventListener("pointercancel", (e) => drop(e, true));
+  function showTip() { $("tip").hidden = false; }
+  $("tipOk").onclick = () => { $("tip").hidden = true; store.set("tip", "1"); };
+  if (!store.get("tip")) showTip();
+
+  // ---- текст песни ----
+  let lyricsOn = false, lyr = null, lineNow = -1, handsOff = 0;
+  $("bLyrics").onclick = () => lyricsOn ? closeLyrics() : openLyrics();
+  function closeLyrics() { lyricsOn = false; $("lyrics").hidden = true; plate.hidden = false; $("bLyrics").classList.remove("on"); $("bLyrics").setAttribute("aria-pressed", "false"); }
+  async function openLyrics() {
+    lyricsOn = true; plate.hidden = true; $("tip").hidden = true; const box = $("lyrics"); box.hidden = false; $("bLyrics").classList.add("on"); $("bLyrics").setAttribute("aria-pressed", "true");
+    if (lyr && st && lyr.id === st.id) return; lineNow = -1; box.replaceChildren(el("p", "", "Ищу текст…"));
+    try {
+      const l = await api("/api/lyrics"); if (!st || l.id !== st.id || !lyricsOn) return; lyr = l;
+      const nodes = l.synced.length ? l.synced.map((x, i) => { const b = el("button", "", x.text || "♪"); b.onclick = () => { handsOff = 0; jumpTo(x.from + .05); buzz(); }; return b; }) : l.text.length ? l.text.map((t) => el("p", "", t)) : [el("p", "", "У этого трека нет текста.")];
+      const about = [l.writers && "Авторы: " + l.writers, l.source && "Источник: " + l.source].filter(Boolean).join(". "); if (about) nodes.push(el("footer", "", about));
+      box.replaceChildren(...nodes); box.scrollTop = 0; tick();
+    } catch (e) { if (lyricsOn) box.replaceChildren(el("p", "", why(e))); }
+  }
+  for (const ev of ["touchstart", "wheel"]) $("lyrics").addEventListener(ev, () => { handsOff = Date.now() + 4000; }, { passive: true });
+  function follow(p) {
+    if (!lyricsOn || !lyr || !lyr.synced.length) return; let i = -1; while (i + 1 < lyr.synced.length && lyr.synced[i + 1].from <= p + .2) i++;
+    if (i === lineNow) return; lineNow = i; const box = $("lyrics"), kids = box.children;
+    for (let k = 0; k < lyr.synced.length; k++) kids[k].className = k === i ? "now" : k < i ? "was" : "";
+    if (i >= 0 && Date.now() > handsOff) box.scrollTo({ top: kids[i].offsetTop - box.clientHeight * .38, behavior: calm.matches ? "auto" : "smooth" });
+  }
+
+  // ---- списки ----
+  function row(t, { list, i, acts }) {
+    const r = el("div", "row"); r.dataset.id = t.id;
+    const p = el("button", "pic"); p.append(pic(t.cover)); p.tabIndex = -1; p.setAttribute("aria-hidden", "true");
+    const b = el("button", "t"); b.append(el("b", "", t.title + (t.version ? " " + t.version : "")), el("span", "", t.artists));
+    const e = el("div", "end");
+    p.onclick = b.onclick = () => { buzz(12); if (i != null) cmd("jump", "&i=" + i); else cmd("play", "&l=" + encodeURIComponent(list) + "&id=" + encodeURIComponent(t.id)); };
+    if (acts) for (const [what, d, label, done] of [["next_up", P.up, "Играть следующим", "Сыграет следующим"], ["queue", P.end, "В конец очереди", "Добавлено в конец очереди"]]) {
+      const a = el("button", "ico"); a.innerHTML = svg(d); a.setAttribute("aria-label", label); a.onclick = async () => { buzz(); if (await cmd(what, "&l=" + encodeURIComponent(list) + "&id=" + encodeURIComponent(t.id))) { a.classList.add("ok"); toast(done); } }; e.append(a);
+    } else e.textContent = mmss(t.duration);
+    r.append(p, b, e); return r;
+  }
+  const markNow = () => document.querySelectorAll(".row[data-id]").forEach((r) => r.classList.toggle("now", !!st && st.hasTrack && r.dataset.id === st.id));
+  function empty(text, label, go) { const d = el("div", "empty", text); if (label) { const b = el("button", "btn soft", label); b.onclick = go; d.append(el("br"), b); } return d; }
+  const bones = (n) => Array.from({ length: n }, () => el("div", "sk"));
+  function renderQueue() {
+    const q = st.queue || []; $("queue").replaceChildren(...(q.length ? q.map((t, i) => row(t, { i })) : [empty("Очередь пуста. Найдите трек или включите плейлист.", "Открыть медиатеку", () => go("library"))]));
+  }
+
+  // ---- поиск ----
+  let searchN = 0, searchT = 0;
+  const recents = () => { try { return JSON.parse(store.get("recent") || "[]").filter((x) => typeof x === "string").slice(0, 8); } catch (e) { return []; } };
+  function showRecent() {
+    const r = recents(), box = $("recent"); if ($("q").value.trim() || !r.length) { box.replaceChildren(); return; }
+    const c = el("div", "chips"); for (const t of r) { const b = el("button", "", t); b.onclick = () => { $("q").value = t; find(); }; c.append(b); } box.replaceChildren(c);
+  }
+  async function find() {
+    const q = $("q").value.trim(); $("qx").hidden = !q; showRecent(); clearTimeout(searchT); if (!q) { $("found").replaceChildren(); return; }
+    const n = ++searchN; if (!$("found").childElementCount) $("found").replaceChildren(...bones(6));
+    try {
+      const r = await api("/api/search?q=" + encodeURIComponent(q.slice(0, 100))); if (n !== searchN) return;
+      $("found").replaceChildren(...(r.tracks.length ? r.tracks.map((t) => row(t, { list: "search", acts: true })) : [empty("По запросу «" + q + "» ничего не нашлось. Проверьте написание.")])); markNow();
+      if (r.tracks.length) store.set("recent", JSON.stringify([q, ...recents().filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 8)));
+    } catch (e) { if (n === searchN) $("found").replaceChildren(empty(why(e), "Повторить", find)); }
+  }
+  $("q").addEventListener("input", () => { const q = $("q").value.trim(); $("qx").hidden = !q; showRecent(); clearTimeout(searchT); if (!q) { searchN++; $("found").replaceChildren(); } else if (q.length > 1) searchT = setTimeout(find, 550); });
+  $("sf").addEventListener("submit", (e) => { e.preventDefault(); $("q").blur(); find(); });
+  $("qx").onclick = () => { $("q").value = ""; find(); $("q").focus(); };
+
+  // ---- медиатека ----
+  let lib = null;
+  async function library() {
+    const box = $("lib"); if (lib) { drawLib(); return; }
+    box.replaceChildren(el("h2", "", "Медиатека"), ...bones(7));
+    try { lib = await api("/api/library"); drawLib(); } catch (e) { box.replaceChildren(el("h2", "", "Медиатека"), empty(why(e), "Повторить", library)); }
+  }
+  function drawLib() {
+    const box = $("lib"), out = [el("h2", "", "Медиатека")];
+    const w = el("button", "wave"); w.innerHTML = svg(P.wave); const wt = el("div"); wt.append(el("b", "", "Моя волна"), el("span", "", "Музыка под вас, без остановки")); w.append(wt);
+    w.onclick = async () => { buzz(12); if (await cmd("wave")) { toast("Включаю Мою волну"); go("player"); } }; out.push(w);
+    if (lib.waves.length) { const v = el("div", "vibes"); lib.waves.forEach((x, i) => { const b = el("button"); b.append(pic(x.cover, x.round ? "round" : ""), el("b", "", x.name)); b.onclick = async () => { buzz(12); if (await cmd("wave", "&i=" + i)) { toast("Волна: " + x.name); go("player"); } }; v.append(b); }); out.push(v); }
+    out.push(el("h3", "", "Плейлисты"));
+    const item = (k, title, sub, cover, ic) => { const r = el("button", "row"), p = el("span", "pic"), t = el("span", "t"); p.append(pic(cover, "", ic)); t.append(el("b", "", title)); if (sub) t.append(el("span", "", sub)); r.append(p, t); r.onclick = () => openList(k, title); return r; };
+    out.push(item("likes", "Мне нравится", "", "", "heart"), ...lib.playlists.map((p) => item(p.key, p.title, p.count ? p.count + " " + words(p.count, "трек", "трека", "треков") : "", p.cover)));
+    box.replaceChildren(...out); box.scrollTop = 0;
+  }
+  const words = (n, a, b, c) => n % 10 === 1 && n % 100 !== 11 ? a : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? b : c;
+  async function openList(k, title) {
+    if (!history.state || !history.state.list) history.pushState({ list: k }, "");
+    const box = $("lib"), back = el("button", "back"); back.innerHTML = svg(P.back); back.append("Медиатека"); back.onclick = () => history.back();
+    box.replaceChildren(back, el("h2", "", title), ...bones(8)); box.scrollTop = 0;
+    try {
+      const l = await api("/api/list?l=" + encodeURIComponent(k)); if (!history.state || history.state.list !== k) return;
+      if (!l.tracks.length) { box.replaceChildren(back, el("h2", "", l.title), empty("Здесь пока нет треков.")); return; }
+      const bs = el("div", "btns"), play = el("button", "btn"), mix = el("button", "btn soft"); play.innerHTML = svg(P.play); play.append("Играть"); mix.innerHTML = svg(P.shuffle); mix.append("Вперемешку");
+      const start = async (sh) => { buzz(12); await cmd("shuffle", "&v=" + (sh ? 1 : 0)); const id = sh ? l.tracks[Math.floor(Math.random() * l.tracks.length)].id : ""; if (await cmd("play", "&l=" + encodeURIComponent(k) + "&id=" + encodeURIComponent(id))) go("player"); };
+      play.onclick = () => start(false); mix.onclick = () => start(true); bs.append(play, mix);
+      box.replaceChildren(back, el("h2", "", l.title), bs, ...l.tracks.map((t) => row(t, { list: k, acts: true }))); markNow();
+    } catch (e) { box.replaceChildren(back, el("h2", "", title), empty(why(e), "Повторить", () => openList(k, title))); }
+  }
+  addEventListener("popstate", () => { if (!$("game").hidden) { $("game").hidden = true; return; } if (lib) drawLib(); });
+
+  // ---- разделы ----
+  let view = "player";
+  function go(v) {
+    if (wide.matches && v === "player") v = view === "player" ? "queue" : view; view = v;
+    for (const s of ["player", "queue", "search", "library"]) $("v-" + s).hidden = s !== v && !(wide.matches && s === "player");
+    document.querySelectorAll(".nav button").forEach((b) => b.dataset.v === v ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+    $("mini").hidden = v === "player"; $("toast").style.setProperty("--lift", v === "player" || wide.matches ? "0px" : "72px"); if (v === "library" && !(history.state && history.state.list)) library(); if (v === "search") { showRecent(); if (!$("q").value && matchMedia("(hover: hover)").matches) $("q").focus(); }
+  }
+  document.querySelectorAll(".nav button").forEach((b) => { b.onclick = () => { if (b.dataset.v === "library" && view === "library" && history.state && history.state.list) history.back(); go(b.dataset.v); }; });
+  $("miniT").onclick = () => go("player"); $("miniPic").onclick = () => go("player"); wide.addEventListener("change", () => go(view === "player" && wide.matches ? "queue" : view));
+
+  // ---- режим катки ----
+  $("bGame").onclick = () => { $("game").hidden = false; history.pushState({ game: 1 }, ""); buzz(16); };
+  $("gX").onclick = () => history.back();
+
+  // ---- шторка «Ещё» ----
+  const dlg = $("dlg"); dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  function act(d, label, fn, note, on) { const b = el("button", "act" + (on ? " on" : "")); b.innerHTML = svg(d); b.append(label); if (note) b.append(el("span", "", note)); b.onclick = fn; return b; }
+  const sleepNote = () => st && st.sleep != null ? "ещё " + Math.max(1, Math.ceil((st.sleep - (Date.now() - at) / 1000) / 60)) + " мин" : "";
+  $("bMore").onclick = () => {
+    if (!st) return; const has = st.hasTrack, out = [];
+    if (has) out.push(act(P.wave, "Волна по этому треку", async () => { dlg.close(); if (await cmd("wave", "&i=track")) toast("Волна: " + st.title); }), act(P.down, "Не нравится", async () => { dlg.close(); buzz(16); if (await cmd("dislike")) toast("Больше не попадётся"); }));
+    out.push(act(P.moon, "Таймер сна", sleepSheet, sleepNote(), st.sleep != null), act(P.help, "Как управлять жестами", () => { dlg.close(); closeLyrics(); go("player"); showTip(); }));
+    $("sheet").replaceChildren(...out); dlg.showModal();
+  };
+  function sleepSheet() {
+    const grid = el("div", "times"); for (const m of [15, 30, 60, 90]) { const b = el("button", "", m + " мин"); b.onclick = async () => { dlg.close(); if (await cmd("sleep", "&v=" + m)) toast("Пауза через " + m + " мин"); }; grid.append(b); }
+    if (st.sleep != null) { const b = el("button", "wide", "Выключить таймер"); b.onclick = async () => { dlg.close(); if (await cmd("sleep", "&v=0")) toast("Таймер выключен"); }; grid.append(b); }
+    $("sheet").replaceChildren(el("h3", "", st.sleep != null ? "Музыка остановится: " + sleepNote() : "Через сколько остановить музыку"), grid);
+  }
+
+  // ---- клавиатура на компьютере ----
+  addEventListener("pointerup", (e) => { if (e.pointerType === "mouse" && e.target.closest && e.target.closest("button")) setTimeout(() => document.activeElement && document.activeElement.matches("button:not(:focus-visible)") && document.activeElement.blur()); });
+  addEventListener("keydown", (e) => {
+    if (e.target.closest("input,[role=slider],dialog[open]") || e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.code; if (k === "Space") { const b = e.target.closest("button"); if (b && b.matches(":focus-visible")) return; e.preventDefault(); playPause(); } else if (k === "ArrowRight") next(); else if (k === "ArrowLeft") prev(); else if (k === "ArrowUp" || k === "ArrowDown") { e.preventDefault(); sendVolume((st ? st.volume : .5) + (k === "ArrowUp" ? .05 : -.05), true); } else if (k === "KeyL") like(); else if (k === "Slash") { e.preventDefault(); go("search"); $("q").focus(); } else if (k === "Escape" && !$("game").hidden) history.back();
   });
 
+  // ---- вход ----
   async function login() {
-    const pin = $("pin").value.trim(); if (!pin) return;
+    const pin = $("pin").value.trim(); if (!pin) { $("err").textContent = "Введите PIN с экрана компьютера."; return; }
+    $("go").disabled = true;
     try {
       const r = await api("/api/login", { method: "POST" }, pin);
       key = r.key; store.set("key", key);
       // Ключ в адресе: «На экран "Домой"» сохранит его вместе со страницей.
-      history.replaceState(null, "", "/#k=" + key);
-      unlock(); sig = ""; loop();
-    } catch (e) { document.body.className = "locked"; if (e.message === "pin") $("err").textContent = "Неверный PIN — возможно, его сменили. Откройте «Подключить телефон…» на компьютере."; }
+      history.replaceState(null, "", "/#k=" + key); unlock(); sig = ""; loop();
+    } catch (e) { document.body.className = "locked"; if (e.message === "pin") $("err").textContent = "PIN не подошёл. Возможно, его сменили: откройте «Подключить телефон…» на компьютере."; else if (e.message !== "locked") $("err").textContent = "Нет связи с компьютером. Проверьте, что телефон в том же Wi-Fi."; }
+    $("go").disabled = false;
   }
-  $("go").onclick = login;
-  $("pin").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
+  $("go").onclick = login; $("pin").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
+  go(wide.matches ? "queue" : "player");
   // QR-код со страницы подключения: адрес с #p=PIN — входим сами, PIN вводить не нужно.
   const pinFromHash = (location.hash.match(/p=(\d{4,8})/) || [])[1];
   if (pinFromHash && !key) { $("pin").value = pinFromHash; history.replaceState(null, "", "/"); login(); }

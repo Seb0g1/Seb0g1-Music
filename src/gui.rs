@@ -2121,7 +2121,19 @@ fn install_remote(ui: &AppWindow, player: &Player) {
             }
             Event::Seek(sec) => p.send(Cmd::Seek(sec)),
             Event::Jump(i) => p.send(Cmd::Jump(i)),
-            Event::Enqueue { track, next } => p.send(Cmd::Enqueue { track, next }),
+            Event::Enqueue { track, next } => p.send(Cmd::Enqueue { track: *track, next }),
+            Event::Dislike => p.send(Cmd::Dislike),
+            Event::Shuffle(on) => p.send(Cmd::Shuffle(on)),
+            Event::Repeat(r) => p.send(Cmd::Repeat(r)),
+            Event::Wave(source) => {
+                let _ = slint::invoke_from_event_loop(move || {
+                    with_ctx(|c| {
+                        c.st.borrow_mut().trailer = None;
+                        c.player.send(Cmd::Wave(source));
+                        c.start();
+                    })
+                });
+            }
             Event::Like => {
                 let _ = slint::invoke_from_event_loop(|| {
                     with_ctx(|c| {
@@ -2131,9 +2143,9 @@ fn install_remote(ui: &AppWindow, player: &Player) {
                     })
                 });
             }
-            Event::Play { tracks, start } => {
+            Event::Play { tracks, start, kind, id, title } => {
                 let _ = slint::invoke_from_event_loop(move || {
-                    with_ctx(|c| c.play_tracks(tracks, start, ListKind::Tracks, "remote-search", "Поиск с телефона"));
+                    with_ctx(|c| c.play_tracks(tracks, start, kind, &id, &title));
                 });
             }
         }

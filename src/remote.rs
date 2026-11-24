@@ -14,7 +14,7 @@
 use crate::config::log;
 use crate::netdiag::{self, PhoneSeen};
 use crate::api::{Api, Track};
-use crate::player::Player;
+use crate::player::{ListKind, Player, Repeat, Shared, Source};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream, UdpSocket};
@@ -26,6 +26,9 @@ use std::time::{Duration, Instant};
 const PAGE: &str = include_str!("remote_page.html");
 const SETUP: &str = include_str!("remote_setup.html");
 const ICON: &[u8] = include_bytes!("../packaging/icons/256.png");
+/// Шрифт страницы (Geologica, SIL OFL 1.1): телефон может быть без интернета.
+const FONT_CYR: &[u8] = include_bytes!("remote_font_cyr.woff2");
+const FONT_LAT: &[u8] = include_bytes!("remote_font_lat.woff2");
 const MAX_CONNECTIONS: usize = 12;
 const LONG_POLL: Duration = Duration::from_secs(25);
 
@@ -41,10 +44,16 @@ pub enum Event {
     Like,
     /// Перейти к треку очереди (индекс в `upcoming`).
     Jump(usize),
-    /// Играть найденное: список результатов поиска с выбранного трека.
-    Play { tracks: Vec<Track>, start: usize },
+    /// «Не нравится»: трек больше не попадётся, играет следующий.
+    Dislike,
+    Shuffle(bool),
+    Repeat(Repeat),
+    /// Включить «Мою волну» или волну по станции.
+    Wave(Source),
+    /// Играть список (поиск, «Мне нравится», плейлист) с выбранного трека.
+    Play { tracks: Vec<Track>, start: usize, kind: ListKind, id: String, title: String },
     /// «Играть следующим» (`next`) или «В конец очереди».
-    Enqueue { track: Track, next: bool },
+    Enqueue { track: Box<Track>, next: bool },
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -415,7 +424,7 @@ pub fn start(player: Player, on_event: impl Fn(Event) + Send + Sync + 'static) {
             open_setup();
         });
     }
-    let ctx = Arc::new(Ctx { player, found: Mutex::new(Vec::new()), cfg: Mutex::new(cfg), on_event: Box::new(on_event) });
+    let ctx = Arc::new(Ctx { player, shown: Mutex::new(Vec::new()), waves: Mutex::new(Vec::new()), lyrics: Mutex::new(None), cfg: Mutex::new(cfg), on_event: Box::new(on_event) });
     let _ = thread::Builder::new().name("remote".into()).stack_size(256 * 1024).spawn(move || {
         for stream in listener.incoming() {
             let Ok(stream) = stream else { continue };
@@ -439,8 +448,11 @@ pub fn start(player: Player, on_event: impl Fn(Event) + Send + Sync + 'static) {
 
 struct Ctx {
     player: Player,
-    /// Последние результаты поиска: телефон присылает только id трека.
-    found: Mutex<Vec<Track>>,
+    shown: Mutex<Vec<Shown>>,
+    /// Вайбы «Моей волны», показанные телефону: имя и станция.
+    waves: Mutex<Vec<(String, Option<String>)>>,
+    /// Текст последнего трека: второй телефон не спрашивает его у Яндекса ещё раз.
+    lyrics: Mutex<Option<(String, serde_json::Value)>>,
     cfg: Mutex<RemoteCfg>,
     on_event: Box<dyn Fn(Event) + Send + Sync>,
 }
@@ -514,11 +526,106 @@ fn respond(s: &mut TcpStream, status: &str, ctype: &str, body: &[u8], extra: &st
     s.flush()
 }
 
+fn source_title(s: &Source) -> String {
+    match s {
+        Source::Wave => "Моя волна".into(),
+        Source::Seed { title, .. } => format!("Волна: {title}"),
+        Source::List { title, .. } => title.clone(),
+    }
+}
+
+/// Меняется, когда трек перемотали: телефон считает время сам и о перемотке в окне иначе не узнал бы
+/// (а по времени у него идёт текст песни).
+fn seek_seq(s: &Shared) -> u32 {
+    struct Seen {
+        id: String,
+        at: Instant,
+        position: f32,
+        playing: bool,
+        seq: u32,
+    }
+    static LAST: Mutex<Option<Seen>> = Mutex::new(None);
+    let id = s.track.as_ref().map(|t| t.id.as_str()).unwrap_or("");
+    let mut last = LAST.lock().unwrap();
+    let seq = match &*last {
+        Some(l) if l.id == id => {
+            let expected = l.position + if l.playing { l.at.elapsed().as_secs_f32() } else { 0.0 };
+            l.seq.wrapping_add(u32::from((s.position - expected).abs() > 2.0))
+        }
+        Some(l) => l.seq.wrapping_add(1),
+        None => 0,
+    };
+    *last = Some(Seen { id: id.to_string(), at: Instant::now(), position: s.position, playing: s.playing, seq });
+    seq
+}
+
+/// Таймер сна: когда поставить на паузу.
+static SLEEP: Mutex<Option<Instant>> = Mutex::new(None);
+/// Растёт при каждой перестановке таймера: старый поток видит, что он уже не нужен.
+static SLEEP_GEN: AtomicU64 = AtomicU64::new(0);
+const SLEEP_MAX: u64 = 12 * 60;
+
+fn sleep_left() -> Option<u64> {
+    SLEEP.lock().unwrap().map(|at| at.saturating_duration_since(Instant::now()).as_secs())
+}
+
+/// Поставить таймер на `minutes` минут, 0 — снять.
+fn set_sleep(ctx: &Arc<Ctx>, minutes: u64) {
+    let gen = SLEEP_GEN.fetch_add(1, Ordering::SeqCst) + 1;
+    let wait = Duration::from_secs(minutes * 60);
+    *SLEEP.lock().unwrap() = (minutes > 0).then(|| Instant::now() + wait);
+    poke();
+    if minutes == 0 {
+        return;
+    }
+    let ctx = ctx.clone();
+    let _ = thread::Builder::new().name("remote-sleep".into()).stack_size(64 * 1024).spawn(move || {
+        thread::sleep(wait);
+        if SLEEP_GEN.load(Ordering::SeqCst) != gen {
+            return;
+        }
+        *SLEEP.lock().unwrap() = None;
+        SLEEP_GEN.fetch_add(1, Ordering::SeqCst);
+        if ctx.player.state().playing {
+            (ctx.on_event)(Event::PlayPause);
+        }
+        poke();
+    });
+}
+
+/// Список, который телефон уже получил: в командах он присылает только его имя и id трека.
+struct Shown {
+    key: String,
+    kind: ListKind,
+    title: String,
+    tracks: Vec<Track>,
+}
+
+const SHOWN_MAX: usize = 8;
+/// Сколько треков списка отдаём телефону.
+const LIST_MAX: usize = 500;
+
+/// Запомнить список (новый вытесняет самый старый).
+fn remember(shown: &mut Vec<Shown>, list: Shown) {
+    shown.retain(|l| l.key != list.key);
+    shown.push(list);
+    if shown.len() > SHOWN_MAX {
+        shown.remove(0);
+    }
+}
+
+/// «likes» или «playlist:UID:KIND»; всё остальное — не наш список.
+fn playlist_key(key: &str) -> Option<(&str, &str)> {
+    let (uid, kind) = key.strip_prefix("playlist:")?.split_once(':')?;
+    let ok = |s: &str| !s.is_empty() && s.len() <= 64 && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.');
+    (ok(uid) && ok(kind)).then_some((uid, kind))
+}
+
 /// Только то, что видит телефон. `sig` меняется вместе с треком, паузой и громкостью.
 fn snapshot(p: &Player) -> (String, serde_json::Value) {
     let s = p.state();
     let (id, title, artists, cover) = match &s.track {
-        Some(t) => (t.id.clone(), t.title.clone(), t.artists.clone(), t.cover_url(400)),
+        Some(t) => (t.id.clone(), t.title.clone(), t.artists.clone(), t.cover_url(800)),
         None => (String::new(), String::new(), String::new(), None),
     };
     let vol = (s.volume * 100.0).round() as i32;
@@ -531,8 +638,36 @@ fn snapshot(p: &Player) -> (String, serde_json::Value) {
         .collect();
     // Очередь входит в подпись коротким хешем id: телефон узнаёт и о «Играть следующим».
     let qhash = s.upcoming.iter().take(30).fold(0u64, |h, t| t.id.bytes().fold(h.rotate_left(5) ^ 0x9e37, |h, b| h.wrapping_mul(31).wrapping_add(b as u64)));
-    let sig = format!("{id}|{}|{}|{vol}|{}|{qhash:x}", s.playing as u8, s.loading as u8, liked as u8);
+    let repeat = match s.repeat {
+        Repeat::Off => "off",
+        Repeat::All => "all",
+        Repeat::One => "one",
+    };
+    let sleep = sleep_left();
+    let sig = format!(
+        "{id}|{}|{}|{vol}|{}|{qhash:x}|{}|{repeat}|{}|{}|{}",
+        s.playing as u8,
+        s.loading as u8,
+        liked as u8,
+        s.shuffle as u8,
+        sleep.is_some() as u8,
+        SLEEP_GEN.load(Ordering::Relaxed),
+        seek_seq(&s)
+    );
+    let t = s.track.as_ref();
     let body = serde_json::json!({
+        "id": id,
+        "version": t.map(|t| t.version.as_str()).unwrap_or(""),
+        "explicit": t.is_some_and(|t| t.explicit),
+        "color": t.and_then(|t| t.color),
+        "hasLyrics": t.is_some_and(|t| t.lyrics),
+        "source": source_title(&s.source),
+        "isList": matches!(s.source, Source::List { .. }),
+        "shuffle": s.shuffle,
+        "repeat": repeat,
+        "sleep": sleep,
+        "loggedIn": !s.uid.is_empty(),
+        "hasPlus": s.has_plus,
         "sig": sig,
         "hasTrack": s.track.is_some(),
         "title": title,
@@ -575,7 +710,7 @@ fn fix(network: bool) -> serde_json::Value {
     }
 }
 
-fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
+fn handle(ctx: &Arc<Ctx>, mut s: TcpStream) -> std::io::Result<()> {
     let Some(req) = read_request(&mut s) else { return Ok(()) };
     // Страница подключения показывает PIN: только с самого ПК и только по адресу 127.0.0.1/localhost
     // (проверка Host закрывает подмену DNS со сторонних сайтов).
@@ -631,8 +766,10 @@ fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
     match (req.method.as_str(), req.path.as_str()) {
         ("GET", "/") | ("GET", "/index.html") => {
             note_phone(&s, PhoneSeen::Page);
-            return respond(&mut s, "200 OK", "text/html; charset=utf-8", PAGE.as_bytes(), "Referrer-Policy: no-referrer\r\n");
+            return respond(&mut s, "200 OK", "text/html; charset=utf-8", PAGE.as_bytes(), "Referrer-Policy: no-referrer\r\nX-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'\r\n");
         }
+        ("GET", "/font-cyr.woff2") => return respond(&mut s, "200 OK", "font/woff2", FONT_CYR, ""),
+        ("GET", "/font-lat.woff2") => return respond(&mut s, "200 OK", "font/woff2", FONT_LAT, ""),
         ("GET", "/icon.png") => return respond(&mut s, "200 OK", "image/png", ICON, ""),
         ("GET", "/manifest.webmanifest") => {
             // Без start_url: иконка «Домой» откроет адрес вместе с ключом в #k=…, у неё своё хранилище.
@@ -725,13 +862,44 @@ fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
                 Some("volume") => param(&req.query, "v").and_then(|v| v.parse::<f32>().ok()).filter(|v| v.is_finite()).map(|v| Event::Volume(v.clamp(0.0, 1.0))),
                 Some("seek") => param(&req.query, "v").and_then(|v| v.parse::<f32>().ok()).filter(|v| v.is_finite() && *v >= 0.0).map(Event::Seek),
                 Some("like") => Some(Event::Like),
+                Some("dislike") => Some(Event::Dislike),
+                Some("shuffle") => Some(Event::Shuffle(param(&req.query, "v") == Some("1"))),
+                Some("repeat") => match param(&req.query, "v") {
+                    Some("off") => Some(Event::Repeat(Repeat::Off)),
+                    Some("all") => Some(Event::Repeat(Repeat::All)),
+                    Some("one") => Some(Event::Repeat(Repeat::One)),
+                    _ => None,
+                },
+                Some("sleep") => {
+                    if let Some(min) = param(&req.query, "v").and_then(|v| v.parse::<u64>().ok()).filter(|m| *m <= SLEEP_MAX) {
+                        set_sleep(ctx, min);
+                        return respond(&mut s, "200 OK", "application/json", br#"{"ok":true}"#, "");
+                    }
+                    None
+                }
+                // Волна: без номера — обычная, с номером — вайб из последнего списка, «track» — по треку.
+                Some("wave") => match param(&req.query, "i") {
+                    None => Some(Event::Wave(Source::Wave)),
+                    Some("track") => ctx.player.state().track.map(|t| Event::Wave(Source::Seed { station: format!("track:{}", t.id), header: "Моя волна по треку".into(), title: t.title })),
+                    Some(i) => i.parse::<usize>().ok().and_then(|i| ctx.waves.lock().unwrap().get(i).cloned()).map(|(name, station)| {
+                        Event::Wave(match station {
+                            Some(station) => Source::Seed { station, header: "Моя волна".into(), title: name },
+                            None => Source::Wave,
+                        })
+                    }),
+                },
                 Some("jump") => param(&req.query, "i").and_then(|v| v.parse::<usize>().ok()).map(Event::Jump),
                 Some(w @ ("play" | "next_up" | "queue")) => {
                     let id = decode(param(&req.query, "id").unwrap_or(""));
-                    let found = ctx.found.lock().unwrap();
-                    found.iter().position(|t| t.id == id).map(|i| match w {
-                        "play" => Event::Play { tracks: found.clone(), start: i },
-                        _ => Event::Enqueue { track: found[i].clone(), next: w == "next_up" },
+                    let key = decode(param(&req.query, "l").unwrap_or("search"));
+                    let shown = ctx.shown.lock().unwrap();
+                    shown.iter().find(|l| l.key == key).and_then(|l| {
+                        // Без id — весь список с начала.
+                        let i = if id.is_empty() { (!l.tracks.is_empty()).then_some(0)? } else { l.tracks.iter().position(|t| t.id == id)? };
+                        Some(match w {
+                            "play" => Event::Play { tracks: l.tracks.clone(), start: i, kind: l.kind, id: format!("remote-{}", l.key), title: l.title.clone() },
+                            _ => Event::Enqueue { track: Box::new(l.tracks[i].clone()), next: w == "next_up" },
+                        })
                     })
                 }
                 _ => None,
@@ -750,28 +918,103 @@ fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
             if text.is_empty() || text.chars().count() > 100 {
                 return respond(&mut s, "400 Bad Request", "application/json", br#"{"error":"q"}"#, "");
             }
-            // Токен тот же, что у окна: настройки на диске обновляются при каждом его продлении.
-            let Some(token) = crate::config::Config::load().token.filter(|t| !t.is_empty()) else {
-                return respond(&mut s, "409 Conflict", "application/json", br#"{"error":"login"}"#, "");
-            };
+            let Some(token) = token() else { return no_login(&mut s) };
             match Api::new(&token).search(text, "track") {
                 Ok(found) => {
                     let tracks: Vec<Track> = found.tracks.into_iter().take(30).collect();
-                    let list: Vec<serde_json::Value> = tracks
+                    send_list(ctx, &mut s, Shown { key: "search".into(), kind: ListKind::Tracks, title: "Поиск с телефона".into(), tracks })
+                }
+                Err(e) => upstream_error(&mut s, "поиск", &e),
+            }
+        }
+        ("GET", "/api/lyrics") => {
+            let Some(t) = ctx.player.state().track else { return respond(&mut s, "404 Not Found", "application/json", br#"{"error":"track"}"#, "") };
+            let cached = ctx.lyrics.lock().unwrap().as_ref().filter(|(id, _)| *id == t.id).map(|(_, v)| v.clone());
+            if let Some(v) = cached {
+                return respond(&mut s, "200 OK", "application/json; charset=utf-8", v.to_string().as_bytes(), "");
+            }
+            let Some(token) = token() else { return no_login(&mut s) };
+            match Api::new(&token).lyrics(&t.id) {
+                Ok(l) => {
+                    let v = serde_json::json!({
+                        "id": t.id,
+                        "synced": l.synced.iter().map(|x| serde_json::json!({ "from": x.from, "text": x.text })).collect::<Vec<_>>(),
+                        "text": l.text,
+                        "writers": l.writers,
+                        "source": l.source,
+                    });
+                    *ctx.lyrics.lock().unwrap() = Some((t.id, v.clone()));
+                    respond(&mut s, "200 OK", "application/json; charset=utf-8", v.to_string().as_bytes(), "")
+                }
+                Err(e) => upstream_error(&mut s, "текст", &e),
+            }
+        }
+        ("GET", "/api/library") => {
+            let Some(token) = token() else { return no_login(&mut s) };
+            let uid = ctx.player.state().uid;
+            if uid.is_empty() {
+                return no_login(&mut s);
+            }
+            let api = Api::new(&token);
+            // Вайбы — украшение: без них медиатека всё равно нужна.
+            let wheel = api.wheel().unwrap_or_default();
+            let waves: Vec<serde_json::Value> = wheel.iter().map(|w| serde_json::json!({ "name": w.name, "text": w.description, "cover": w.cover.as_deref().map(|c| crate::api::pic(c, 200)), "round": w.round })).collect();
+            *ctx.waves.lock().unwrap() = wheel.into_iter().map(|w| (w.name.clone(), w.station())).collect();
+            match api.playlists(&uid) {
+                Ok(list) => {
+                    let playlists: Vec<serde_json::Value> = list
                         .iter()
-                        .map(|t| serde_json::json!({ "id": t.id, "title": t.title, "artists": t.artists, "cover": t.cover_url(100), "duration": t.duration_ms / 1000, "liked": ctx.player.is_liked(&t.id) }))
+                        .map(|p| serde_json::json!({ "key": format!("playlist:{}:{}", p.uid, p.kind), "title": p.title, "count": p.track_count, "cover": p.covers.first().map(|c| crate::api::pic(c, 200)) }))
                         .collect();
-                    *ctx.found.lock().unwrap() = tracks;
-                    respond(&mut s, "200 OK", "application/json; charset=utf-8", serde_json::json!({ "tracks": list }).to_string().as_bytes(), "")
+                    respond(&mut s, "200 OK", "application/json; charset=utf-8", serde_json::json!({ "waves": waves, "playlists": playlists }).to_string().as_bytes(), "")
                 }
-                Err(e) => {
-                    log(format!("remote: поиск: {e}"));
-                    respond(&mut s, "502 Bad Gateway", "application/json", br#"{"error":"search"}"#, "")
-                }
+                Err(e) => upstream_error(&mut s, "медиатека", &e),
+            }
+        }
+        ("GET", "/api/list") => {
+            let key = decode(param(&req.query, "l").unwrap_or(""));
+            let Some(token) = token() else { return no_login(&mut s) };
+            let api = Api::new(&token);
+            let res = if key == "likes" {
+                api.liked_tracks(&ctx.player.state().uid).map(|t| (ListKind::Likes, "Мне нравится".to_string(), t))
+            } else if let Some((uid, kind)) = playlist_key(&key) {
+                api.playlist(uid, kind).map(|(p, t)| (ListKind::Playlist, p.title, t))
+            } else {
+                return respond(&mut s, "400 Bad Request", "application/json", br#"{"error":"list"}"#, "");
+            };
+            match res {
+                Ok((kind, title, tracks)) => send_list(ctx, &mut s, Shown { key, kind, title, tracks: tracks.into_iter().take(LIST_MAX).collect() }),
+                Err(e) => upstream_error(&mut s, "список", &e),
             }
         }
         _ => respond(&mut s, "404 Not Found", "application/json", br#"{"error":"route"}"#, ""),
     }
+}
+
+/// Токен тот же, что у окна: настройки на диске обновляются при каждом его продлении.
+fn token() -> Option<String> {
+    crate::config::Config::load().token.filter(|t| !t.is_empty())
+}
+
+fn no_login(s: &mut TcpStream) -> std::io::Result<()> {
+    respond(s, "409 Conflict", "application/json", br#"{"error":"login"}"#, "")
+}
+
+fn upstream_error(s: &mut TcpStream, what: &str, e: &str) -> std::io::Result<()> {
+    log(format!("remote: {what}: {e}"));
+    respond(s, "502 Bad Gateway", "application/json", br#"{"error":"yandex"}"#, "")
+}
+
+/// Отдать список телефону и запомнить его для команд.
+fn send_list(ctx: &Ctx, s: &mut TcpStream, list: Shown) -> std::io::Result<()> {
+    let tracks: Vec<serde_json::Value> = list
+        .tracks
+        .iter()
+        .map(|t| serde_json::json!({ "id": t.id, "title": t.title, "version": t.version, "artists": t.artists, "cover": t.cover_url(100), "duration": t.duration_ms / 1000, "liked": ctx.player.is_liked(&t.id) }))
+        .collect();
+    let body = serde_json::json!({ "key": list.key, "title": list.title, "tracks": tracks }).to_string();
+    remember(&mut ctx.shown.lock().unwrap(), list);
+    respond(s, "200 OK", "application/json; charset=utf-8", body.as_bytes(), "")
 }
 
 /// Декодер параметра адреса: `%XX` (encodeURIComponent) и `+` как пробел.
@@ -809,6 +1052,40 @@ mod tests {
         for bad in ["", "null", "https://evil.example", "http://127.0.0.1:8788", "http://127.0.0.1:8787.evil.example", "http://192.168.1.42:8787"] {
             assert!(!origin_ok(bad, 8787), "{bad}");
         }
+    }
+
+    #[test]
+    fn playlist_keys_are_strict() {
+        assert_eq!(playlist_key("playlist:123:1003"), Some(("123", "1003")));
+        assert_eq!(playlist_key("playlist:a.b-c:3"), Some(("a.b-c", "3")));
+        for bad in ["", "likes", "playlist:", "playlist:1", "playlist:1:", "playlist:../x:3", "playlist:1:3/tracks", "playlist:1:3?x"] {
+            assert_eq!(playlist_key(bad), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn shown_lists_are_bounded_and_unique() {
+        let mut v = Vec::new();
+        let list = |k: &str| Shown { key: k.into(), kind: ListKind::Tracks, title: String::new(), tracks: Vec::new() };
+        for i in 0..20 {
+            remember(&mut v, list(&i.to_string()));
+        }
+        assert_eq!(v.len(), SHOWN_MAX);
+        remember(&mut v, list("15"));
+        assert_eq!(v.iter().filter(|l| l.key == "15").count(), 1);
+        assert_eq!(v.last().unwrap().key, "15");
+    }
+
+    #[test]
+    fn seek_changes_signature() {
+        let mut s = Shared { playing: true, position: 10.0, ..Default::default() };
+        let a = seek_seq(&s);
+        // Обычный ход времени подпись не трогает.
+        assert_eq!(seek_seq(&s), a);
+        s.position = 90.0;
+        let b = seek_seq(&s);
+        assert_ne!(a, b);
+        assert_eq!(seek_seq(&s), b);
     }
 
     #[test]

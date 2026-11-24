@@ -36,17 +36,24 @@ COVERS = {
     "q5": cover_svg("#fbc2eb", "#a6c1ee"),
 }
 C = lambda k: f"/demo/{k}.svg"
+T = lambda i, t, a, c, d: {"id": str(i), "title": t, "version": "", "artists": a, "cover": C(c), "duration": d, "liked": False}
 QUEUE = [
-    {"id": "1", "title": "Ночной трамвай", "artists": "Демо-исполнитель", "cover": C("q1"), "duration": 214},
-    {"id": "2", "title": "Северный ветер", "artists": "Группа Пример", "cover": C("q2"), "duration": 187},
-    {"id": "3", "title": "Неон и дождь", "artists": "Синтвейв Тест", "cover": C("q3"), "duration": 245},
-    {"id": "4", "title": "Утро на районе", "artists": "Лоуфай Бит", "cover": C("q4"), "duration": 162},
-    {"id": "5", "title": "Последний раунд", "artists": "Clutch Mode", "cover": C("q5"), "duration": 199},
+    T(1, "Ночной трамвай", "Лоуфай Бит", "q1", 214),
+    T(2, "Северный ветер", "Группа Полюс", "q2", 187),
+    T(3, "Неон и дождь", "Синтвейв 88", "q3", 245),
+    T(4, "Утро на районе", "Тёплый асфальт", "q4", 162),
+    T(5, "Последний раунд", "Clutch Mode", "q5", 199),
 ]
 STATE = {
-    "sig": "demo", "hasTrack": True, "title": "Летний вайб", "artists": "Демо-исполнитель", "cover": C("main"),
+    "sig": "demo", "id": "m", "hasTrack": True, "title": "Летний вайб", "version": "", "artists": "Демо-исполнитель", "cover": C("main"), "explicit": False,
+    "color": [235, 120, 80], "hasLyrics": True, "source": "Моя волна", "isList": True, "shuffle": False, "repeat": "off", "sleep": None, "loggedIn": True, "hasPlus": True,
     "playing": True, "loading": False, "position": 83, "duration": 211, "volume": 0.62, "liked": True, "queue": QUEUE,
 }
+LYRICS = {"id": "m", "text": [], "writers": "Демо-автор", "source": "Пример", "synced": [{"from": 60 + i * 7, "text": t} for i, t in enumerate([
+    "Город выдыхает после жары", "Окна нараспашку, шторы как флаги", "Мы идём пешком до самой воды", "Ключи в кармане, песок в кроссовках",
+    "Кто-то во дворе включил нашу песню", "И лето опять никуда не спешит", "", "Оставь мне этот вечер целиком"])]}
+LIBRARY = {"waves": [{"name": n, "text": "", "cover": C(c), "round": r} for n, c, r in [("Бодрое утро", "q2", False), ("Clutch Mode", "q5", True), ("Спокойно", "q3", False), ("В дорогу", "q4", False)]],
+    "playlists": [{"key": f"playlist:1:{i}", "title": t, "count": n, "cover": C(c)} for i, (t, n, c) in enumerate([("Для катки", 48, "q5"), ("Ночь и дорога", 121, "q1"), ("Плейлист дня", 60, "main")])]}
 qr = segno.make(f"{DEMO_URL}/#p={DEMO_PIN}", error="m")
 _m = [list(r) for r in qr.matrix]
 _n, _b = len(_m), 3
@@ -68,6 +75,17 @@ def route(r):
         return r.fulfill(status=200, content_type="application/json", body=json.dumps(STATE))
     if path.startswith("/api/search"):
         return r.fulfill(status=200, content_type="application/json", body=json.dumps({"tracks": QUEUE}))
+    if path.startswith("/api/lyrics"):
+        return r.fulfill(status=200, content_type="application/json", body=json.dumps(LYRICS))
+    if path.startswith("/api/library"):
+        return r.fulfill(status=200, content_type="application/json", body=json.dumps(LIBRARY))
+    if path.startswith("/api/list"):
+        return r.fulfill(status=200, content_type="application/json", body=json.dumps({"key": "likes", "title": "Мне нравится", "tracks": QUEUE}))
+    if path.startswith("/api/cmd"):
+        return r.fulfill(status=200, content_type="application/json", body='{"ok":true}')
+    if path.startswith("/font-"):
+        name = "cyr" if "cyr" in path else "lat"
+        return r.fulfill(status=200, content_type="font/woff2", body=(ROOT / "src" / f"remote_font_{name}.woff2").read_bytes())
     if path.startswith("/setup/info"):
         return r.fulfill(status=200, content_type="application/json", body=json.dumps(SETUP_INFO))
     if path.startswith("/setup/diag"):
@@ -112,16 +130,24 @@ def shot_pages(p):
     ctx = b.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=3, is_mobile=True, has_touch=True)
     pg = ctx.new_page()
     pg.route("**/*", route)
+    pg.add_init_script("localStorage.setItem('tip', '1')")
     pg.goto(f"{DEMO_URL}/#k=" + "a" * 64)
-    pg.wait_for_timeout(1200)
+    pg.wait_for_timeout(1500)
     pg.screenshot(path=str(OUT / "phone-remote.png"))
-    pg.click("#ts")
-    pg.fill("#q", "демо")
-    pg.click("#sf button")
-    pg.wait_for_timeout(800)
-    pg.evaluate("window.scrollTo(0, 330)")
-    pg.wait_for_timeout(300)
+    pg.click("#bLyrics")
+    pg.wait_for_timeout(1200)
+    pg.screenshot(path=str(OUT / "phone-lyrics.png"))
+    pg.click("[data-v=search]")
+    pg.fill("#q", "ночь")
+    pg.wait_for_timeout(1200)
     pg.screenshot(path=str(OUT / "phone-search.png"))
+    pg.click("[data-v=library]")
+    pg.wait_for_timeout(900)
+    pg.screenshot(path=str(OUT / "phone-library.png"))
+    pg.click("[data-v=player]")
+    pg.click("#bGame")
+    pg.wait_for_timeout(400)
+    pg.screenshot(path=str(OUT / "phone-game.png"))
     ctx.close()
     # Страница подключения на ПК
     ctx = b.new_context(viewport={"width": 1280, "height": 900}, device_scale_factor=2)
@@ -194,7 +220,8 @@ body{{width:1280px;height:560px}} h1{{top:150px;font-size:76px;width:720px}} .su
     b.close()
 
 
-with sync_playwright() as p:
-    shot_pages(p)
-    cards(p)
-print("ok", sorted(x.name for x in OUT.iterdir()))
+if __name__ == "__main__":
+    with sync_playwright() as p:
+        shot_pages(p)
+        cards(p)
+    print("ok", sorted(x.name for x in OUT.iterdir()))

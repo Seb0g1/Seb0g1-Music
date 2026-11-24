@@ -19,7 +19,7 @@ Pause, skip, volume, seek, likes, queue and search from an iPhone or Android ove
 ![Rust](https://img.shields.io/badge/Rust-1.92%2B-2b2b30?labelColor=1c1c1f&logo=rust)
 ![iPhone and Android](https://img.shields.io/badge/remote-iPhone%20%7C%20Android-2b2b30?labelColor=1c1c1f)
 [![GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-2b2b30?labelColor=1c1c1f)](LICENSE)
-[![VirusTotal](https://img.shields.io/badge/VirusTotal-scanned-2b2b30?labelColor=1c1c1f&logo=virustotal)](https://www.virustotal.com/gui/file/c22525357f15a98e925eaab322ab79c388529a1da761afde31b47ca1b294cb12/detection)
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-scanned-2b2b30?labelColor=1c1c1f&logo=virustotal)](https://www.virustotal.com/gui/file/3fd425012ce21e166ff6e99906aca86e53ae24719dbe0ec0d0db1b20cdc1ded2/detection)
 
 [Русский](README.md) · **English**
 
@@ -51,9 +51,9 @@ Spotify lets you skip a song on your computer from your phone. The Yandex Music 
 
 > Windows SmartScreen may warn that the installer is unsigned. Click **"More info" → "Run anyway"**.
 
-🛡 **Virus scan:** [VirusTotal report](https://www.virustotal.com/gui/file/c22525357f15a98e925eaab322ab79c388529a1da761afde31b47ca1b294cb12/detection) for installer 1.2.0.<br>
-SHA-256: `c22525357f15a98e925eaab322ab79c388529a1da761afde31b47ca1b294cb12`<br>
-Verify locally: `Get-FileHash .\Seb0g1-Musick-Setup-1.2.0.exe` in PowerShell.
+🛡 **Virus scan:** [VirusTotal report](https://www.virustotal.com/gui/file/3fd425012ce21e166ff6e99906aca86e53ae24719dbe0ec0d0db1b20cdc1ded2/detection) for installer 1.3.0.<br>
+SHA-256: `3fd425012ce21e166ff6e99906aca86e53ae24719dbe0ec0d0db1b20cdc1ded2`<br>
+Verify locally: `Get-FileHash .\Seb0g1-Musick-Setup-1.3.0.exe` in PowerShell.
 
 Requirements: Windows 10 or 11, 64-bit. Any phone with a browser: iPhone (Safari), Android (Chrome).
 

@@ -20,6 +20,7 @@ mod landing;
 #[cfg(target_os = "linux")]
 mod mpris;
 mod net;
+mod netdiag;
 mod palette;
 mod player;
 mod remote;
@@ -36,6 +37,12 @@ mod update;
 mod yandex_id;
 
 fn main() -> Result<(), slint::PlatformError> {
+    // Кнопка «Исправить» на странице подключения: этот же exe с правами администратора, без окна.
+    #[cfg(windows)]
+    if std::env::args().nth(1).as_deref() == Some(netdiag::FIX_ARG) {
+        let args: Vec<String> = std::env::args().skip(1).collect();
+        std::process::exit(netdiag::run_fix(&args));
+    }
     #[cfg(target_os = "linux")]
     sys::audio_identity();
     // После обновления старая версия ещё закрывается: ждём её до 15 секунд.

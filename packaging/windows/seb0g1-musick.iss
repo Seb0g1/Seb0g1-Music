@@ -2,9 +2,13 @@
 ;   cargo build --release
 ;   "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" packaging\windows\seb0g1-musick.iss
 ; Готовый файл: dist\Seb0g1-Musick-Setup-<версия>.exe
+;
+; Имя файла и тег релиза (v<версия>) нельзя менять: по ним программа находит обновление (src\update.rs).
+; Программа обновляется этим же установщиком: /SILENT /AUTOUPDATE=1 и /CURRENTUSER или /ALLUSERS.
 
 #define AppName "Seb0g1 Musick"
-#define AppVersion "1.1.5.2"
+; Та же версия, что в Cargo.toml (её сравнивает проверка обновлений).
+#define AppVersion "1.2.0"
 #define AppExe "Seb0g1 Musick.exe"
 #define Port "8787"
 
@@ -61,9 +65,86 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#AppName}"""; Flags: runhidden; Tasks: firewall
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#AppName}"" dir=in action=allow program=""{app}\{#AppExe}"" enable=yes profile=private,domain protocol=TCP localport={#Port}"; Flags: runhidden; Tasks: firewall
 Filename: "{app}\{#AppExe}"; Description: "Запустить {#AppName} (откроется страница «Подключить телефон»)"; Flags: postinstall nowait skipifsilent
+; Обновление из программы: запустить новую версию от имени того же человека, без прав администратора.
+Filename: "{app}\{#AppExe}"; Parameters: "--after-update"; Flags: nowait runasoriginaluser; Check: IsAutoUpdate
 
 [UninstallRun]
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#AppName}"""; Flags: runhidden; RunOnceId: "fwdel"; Check: IsAdminInstallMode
 
 [Messages]
 ru.WelcomeLabel2=Будет установлен [name/ver].%n%nМузыка Яндекса на компьютере и пульт на телефоне: пауза, переключение, громкость, перемотка, лайки, очередь и поиск. После установки откроется страница с QR-кодом — наведите на него камеру телефона.
+
+[Code]
+var
+  Signaled, Installed: Boolean;
+
+function IsAutoUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:AUTOUPDATE|0}') = '1';
+end;
+
+{ Права получены — программа видит мьютекс и закрывается (src\update.rs, SIGNAL). Пока человек
+  отвечает на запрос прав, мьютекса нет: при отказе программа просто играет дальше. }
+function InitializeSetup: Boolean;
+begin
+  Result := True;
+  if IsAutoUpdate and (IsAdmin or not IsAdminInstallMode) then
+  begin
+    CreateMutex('Global\seb0g1_musick_updating');
+    Signaled := True;
+  end;
+end;
+
+{ Запущенный exe нельзя открыть на запись. }
+function ExeIsFree(const Path: String): Boolean;
+var
+  S: TFileStream;
+begin
+  Result := True;
+  if not FileExists(Path) then
+    exit;
+  try
+    S := TFileStream.Create(Path, fmOpenReadWrite);
+    S.Free;
+  except
+    Result := False;
+  end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  I: Integer;
+begin
+  Result := '';
+  if not IsAutoUpdate then
+    exit;
+  for I := 1 to 60 do
+  begin
+    if ExeIsFree(ExpandConstant('{app}\{#AppExe}')) then
+      exit;
+    Sleep(500);
+  end;
+  Result := 'Программа не закрылась. Закройте Seb0g1 Musick и обновите ещё раз.';
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssDone then
+    Installed := True;
+end;
+
+{ Обновление сорвалось, а программа уже закрылась: вернуть человеку прежнюю версию. }
+procedure DeinitializeSetup;
+var
+  Code: Integer;
+  Dir: String;
+begin
+  if not Signaled or Installed then
+    exit;
+  if IsAdminInstallMode then
+    RegQueryStringValue(HKLM, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{6B1E0C7A-5D3F-4E21-9A64-5EB0611C0DE5}_is1', 'InstallLocation', Dir)
+  else
+    RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{6B1E0C7A-5D3F-4E21-9A64-5EB0611C0DE5}_is1', 'InstallLocation', Dir);
+  if Dir <> '' then
+    ExecAsOriginalUser(AddBackslash(Dir) + '{#AppExe}', '--after-update', '', SW_SHOWNORMAL, ewNoWait, Code);
+end;

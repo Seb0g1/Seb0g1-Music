@@ -52,6 +52,11 @@ _m = [list(r) for r in qr.matrix]
 _n, _b = len(_m), 3
 _path = "".join(f"M{x + _b},{y + _b}h1v1h-1z" for y, row in enumerate(_m) for x, v in enumerate(row) if v)
 QR_SVG = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {_n + 2 * _b} {_n + 2 * _b}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="{_path}" fill="#000"/></svg>'
+SETUP_DIAG = {"bad": 0, "warn": 0, "fixable": False, "askNetwork": None, "items": [
+    {"id": "net", "state": "ok", "title": "Домашняя сеть есть", "text": "Адрес компьютера 192.168.1.42 через «Wi-Fi».", "fix": False},
+    {"id": "profile", "state": "ok", "title": "Сеть «Дом» — «Частная»", "text": "Windows разрешает устройствам домашней сети видеть компьютер.", "fix": False},
+    {"id": "firewall", "state": "ok", "title": "Брандмауэр Windows пропускает пульт", "text": "Порт 8787 открыт для домашней сети.", "fix": False},
+]}
 SETUP_INFO = {"app": "Seb0g1 Musick", "url": DEMO_URL, "others": [], "pin": DEMO_PIN, "phones": 1, "qr": QR_SVG, "loggedIn": True}
 
 
@@ -65,6 +70,8 @@ def route(r):
         return r.fulfill(status=200, content_type="application/json", body=json.dumps({"tracks": QUEUE}))
     if path.startswith("/setup/info"):
         return r.fulfill(status=200, content_type="application/json", body=json.dumps(SETUP_INFO))
+    if path.startswith("/setup/diag"):
+        return r.fulfill(status=200, content_type="application/json", body=json.dumps(SETUP_DIAG))
     if path.startswith("/setup"):
         return r.fulfill(status=200, content_type="text/html; charset=utf-8", body=SETUP)
     if path.startswith("/demo/"):

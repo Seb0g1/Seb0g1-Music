@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Подключить телефон — Seb0g1 Musick</title>
 <style>
-  :root { --bg: #0e0e10; --card: #17171b; --card2: #1f1f25; --text: #f4f4f6; --muted: #a0a0ab; --accent: #ffd43b; --ok: #4ade80; --warn: #ffb020; --line: #2a2a31; }
+  :root { --bg: #0e0e10; --card: #17171b; --card2: #1f1f25; --text: #f4f4f6; --muted: #a0a0ab; --accent: #ffd43b; --ok: #4ade80; --warn: #ffb020; --bad: #ff6b6b; --line: #2a2a31; }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
   main { max-width: 980px; margin: 0 auto; padding: 40px 24px 56px; }
   header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
@@ -19,8 +20,8 @@
   .qr svg { width: 100%; height: 100%; }
   .qrcap { text-align: center; color: var(--muted); font-size: 14px; margin-top: 12px; }
   .field { margin-top: 16px; }
-  .field span { display: block; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
-  .field b { display: flex; align-items: center; gap: 10px; font-size: 24px; font-variant-numeric: tabular-nums; word-break: break-all; }
+  .field > span { display: block; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+  .field b { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 22px; font-variant-numeric: tabular-nums; word-break: break-all; }
   .field.pin b { font-size: 34px; letter-spacing: .18em; }
   .copy { font: inherit; font-size: 13px; color: var(--text); background: var(--card2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; letter-spacing: 0; }
   ol { margin: 0; padding-left: 0; list-style: none; counter-reset: s; display: grid; gap: 16px; }
@@ -36,6 +37,24 @@
   .pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); }
   .danger { font: inherit; color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
   .danger:hover { border-color: #ff6b6b; color: #ff6b6b; }
+  .diag h2 { margin: 0; }
+  .diag .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-bottom: 4px; }
+  .diag .sum { margin: 0 0 18px; color: var(--muted); }
+  .diag ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+  .diag li { display: grid; grid-template-columns: 26px 1fr; gap: 12px; }
+  .diag li > i { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-weight: 700; font-size: 15px; background: var(--card2); color: var(--muted); }
+  .diag li.ok > i { color: var(--ok); } .diag li.warn > i { color: var(--warn); } .diag li.bad > i { background: var(--bad); color: #1a0606; }
+  .diag li b { display: block; } .diag li span { color: var(--muted); }
+  .diag.has-bad { border-color: var(--bad); margin-bottom: 24px; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; }
+  .actions p { margin: 0; color: var(--muted); font-size: 14px; flex: 1 1 260px; }
+  .fix { font: inherit; font-weight: 700; color: #111; background: var(--accent); border: 0; border-radius: 12px; padding: 11px 22px; cursor: pointer; }
+  .fix:hover { filter: brightness(1.06); } .fix:disabled { opacity: .55; cursor: default; }
+  .fix:focus-visible, .ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .ghost { font: inherit; font-size: 14px; color: var(--text); background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 6px 14px; cursor: pointer; }
+  .ghost:disabled { opacity: .55; cursor: default; }
+  .msg { margin: 16px 0 0; } .msg:empty { display: none; } .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); }
+  details { margin-top: 20px; color: var(--muted); } summary { cursor: pointer; color: var(--text); } details ul { margin-top: 12px; padding-left: 20px; list-style: disc; display: block; } details li { display: list-item; margin-bottom: 8px; }
   footer { margin-top: 28px; color: var(--muted); font-size: 13px; }
   @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
 </style>
@@ -47,6 +66,7 @@
     <div><h1>Подключите телефон к Seb0g1 Musick</h1><p>Пульт для музыки на телефоне: пауза, переключение, громкость, перемотка, лайки, очередь и поиск треков.</p></div>
   </header>
   <div class="status" id="status"></div>
+  <div id="diagTop"></div>
   <div class="grid">
     <section class="card">
       <div class="qr" id="qr" aria-label="QR-код для телефона"></div>
@@ -65,15 +85,7 @@
           <li><div><b>Включите музыку</b><span>Войдите в аккаунт Яндекса в окне Seb0g1 Musick и запустите любую волну или трек — с телефона можно сразу искать и включать музыку.</span></div></li>
         </ol>
       </div>
-      <div class="card sec trouble">
-        <h2>Если телефон не подключается</h2>
-        <ul>
-          <li><b>Сеть Windows должна быть «Частной».</b> Параметры → Сеть и Интернет → Wi-Fi (или Ethernet) → ваша сеть → «Тип сетевого профиля: Частная». В «Общедоступной» сети Windows не пускает телефон.</li>
-          <li><b>Адрес мог смениться</b> после перезагрузки роутера. Откройте эту страницу снова: значок программы в трее → «Подключить телефон…».</li>
-          <li><b>Гостевая сеть роутера</b> часто не даёт устройствам видеть друг друга — подключите оба устройства к основной сети.</li>
-          <li><b>Антивирус с сетевым экраном</b> может блокировать порт 8787 — разрешите в нём программу Seb0g1 Musick.</li>
-        </ul>
-      </div>
+      <div id="diagLow" class="sec"></div>
       <div class="card sec">
         <h2>Подключённые телефоны</h2>
         <p style="margin:0 0 14px;color:var(--muted)">Запомнено телефонов: <b id="phones" style="color:var(--text)">0</b>. Если потеряли телефон или отдавали его другому человеку — отключите все: PIN и QR-код сменятся.</p>
@@ -83,6 +95,21 @@
   </div>
   <footer>Эта страница открывается только на этом компьютере. Seb0g1 Musick основан на открытом клиенте yamusic-rs (GPL-3.0); неофициальный клиент, не связан с Яндексом.</footer>
 </main>
+<template id="diagTpl">
+  <section class="card diag" aria-live="polite">
+    <div class="head"><h2>Почему не подключается?</h2><button class="ghost" id="recheck">Проверить ещё раз</button></div>
+    <p class="sum" id="diagSum">Проверяю…</p>
+    <ul id="diagList"></ul>
+    <div class="actions" id="diagActions" hidden><button class="fix" id="fix">Исправить</button><p>Windows спросит разрешение. Программа откроет порт пульта для домашних сетей. Тип сети изменит, только если вы подтвердите.</p></div>
+    <p class="msg" id="diagMsg"></p>
+    <details><summary>Что ещё проверить самому</summary><ul>
+      <li>Гостевая сеть роутера часто не даёт устройствам видеть друг друга — подключите телефон и компьютер к основной.</li>
+      <li>На телефоне выключите VPN и мобильный интернет, оставьте Wi-Fi.</li>
+      <li>После перезагрузки роутера адрес мог смениться — наведите камеру на QR-код заново.</li>
+      <li>Антивирус с сетевым экраном: разрешите в нём программу Seb0g1 Musick.</li>
+    </ul></details>
+  </section>
+</template>
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -103,6 +130,55 @@
       $("status").innerHTML = '<span class="pill warn">Программа закрыта — запустите Seb0g1 Musick</span>';
     }
   }
+  // «Почему не подключается?»
+  const diag = $("diagTpl").content.firstElementChild.cloneNode(true);
+  $("diagLow").append(diag);
+  const marks = { ok: "✓", info: "i", warn: "!", bad: "✕" };
+  const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many;
+  let report = null;
+  function show(d) {
+    report = d;
+    $("diagList").replaceChildren(...d.items.map((it) => {
+      const li = document.createElement("li"), i = document.createElement("i"), box = document.createElement("div"), b = document.createElement("b"), t = document.createElement("span");
+      li.className = it.state; i.textContent = marks[it.state] || ""; i.setAttribute("aria-hidden", "true"); b.textContent = it.title; t.textContent = it.text;
+      box.append(b, t); li.append(i, box); return li;
+    }));
+    $("diagSum").textContent = d.bad ? "Мешает подключению: " + d.bad + " " + plural(d.bad, "причина", "причины", "причин") + "."
+      : d.warn ? "Явных помех нет, но обратите внимание на отмеченное." : "Компьютер готов: со стороны Windows телефону ничего не мешает.";
+    $("diagActions").hidden = !d.fixable;
+    // Есть что чинить — показываем сразу под заголовком, иначе ниже инструкции.
+    diag.classList.toggle("has-bad", d.bad > 0);
+    const place = d.bad > 0 ? $("diagTop") : $("diagLow");
+    if (diag.parentNode !== place) place.append(diag);
+  }
+  function message(text, cls) { $("diagMsg").textContent = text || ""; $("diagMsg").className = "msg " + (cls || ""); }
+  async function check() {
+    $("recheck").disabled = true;
+    try { const r = await fetch("/setup/diag", { cache: "no-store" }); if (!r.ok) throw 0; show(await r.json()); }
+    catch (e) { $("diagSum").textContent = "Проверить не удалось: программа закрыта или обновляется."; }
+    $("recheck").disabled = false;
+  }
+  $("recheck").onclick = () => { message(""); check(); };
+  $("fix").onclick = async () => {
+    let network = 0;
+    if (report && report.askNetwork) {
+      if (confirm("Сделать сеть «" + report.askNetwork + "» частной?\n\nНажмите «ОК», только если это ваша домашняя сеть. В кафе, отеле или на работе — «Отмена».")) network = 1;
+      else if (!report.items.some((i) => i.id === "firewall" && i.fix)) return;
+    }
+    $("fix").disabled = $("recheck").disabled = true; $("fix").textContent = "Жду ответа Windows…";
+    message("Подтвердите запрос Windows. Если его не видно — нажмите на мигающий щит на панели задач.");
+    try {
+      const r = await fetch("/setup/fix?network=" + network, { method: "POST" });
+      const d = await r.json();
+      if (d.report) show(d.report);
+      if (d.cancelled) message("Вы не разрешили изменения — ничего не поменялось.", "");
+      else if (!d.ok) message("Не получилось: " + (d.error || "неизвестная ошибка"), "bad");
+      else if (d.report && d.report.bad) message("Часть исправлена, но осталось то, что выше.", "");
+      else message("Готово. Наведите камеру телефона на QR-код ещё раз.", "ok");
+    } catch (e) { message("Программа не ответила. Проверьте, запущена ли она.", "bad"); }
+    $("fix").disabled = $("recheck").disabled = false; $("fix").textContent = "Исправить";
+  };
+  check();
   load();
   setInterval(() => { if (!document.hidden) load(); }, 4000);
   document.addEventListener("click", (e) => {

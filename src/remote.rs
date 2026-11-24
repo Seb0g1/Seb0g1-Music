@@ -12,6 +12,7 @@
 //! Неверный PIN тормозит ответ, после 10 ошибок за 10 минут вход закрыт до конца окна.
 
 use crate::config::log;
+use crate::netdiag::{self, PhoneSeen};
 use crate::api::{Api, Track};
 use crate::player::Player;
 use serde::{Deserialize, Serialize};
@@ -176,10 +177,10 @@ fn same(a: &str, b: &str) -> bool {
 /// Адреса ПК в домашней сети, лучший первым. На Windows перебираем адаптеры: берём включённые
 /// Wi-Fi и Ethernet со шлюзом и пропускаем виртуальные (VPN, Hyper-V/WSL, VirtualBox, Docker) —
 /// иначе на ПК с VPN выбирался бы адрес туннеля, до которого телефон не достучится.
-fn lan_ips() -> Vec<std::net::Ipv4Addr> {
+pub(crate) fn lan_ips() -> Vec<std::net::Ipv4Addr> {
     let mut found: Vec<(i32, std::net::Ipv4Addr)> = Vec::new();
     #[cfg(windows)]
-    found.extend(windows_adapters());
+    found.extend(adapters().into_iter().filter(|a| a.gateway).map(|a| (a.rank, a.ip)));
     // Запасной путь: интерфейс маршрута к типичным адресам роутеров и в интернет.
     for probe in ["192.168.0.1:80", "192.168.1.1:80", "10.0.0.1:80", "8.8.8.8:80"] {
         if let Some(std::net::IpAddr::V4(ip)) = UdpSocket::bind("0.0.0.0:0").ok().and_then(|u| u.connect(probe).ok().and_then(|_| u.local_addr().ok())).map(|a| a.ip()) {
@@ -210,8 +211,23 @@ fn ip_rank(ip: std::net::Ipv4Addr) -> i32 {
     }
 }
 
+/// Включённый адаптер с адресом IPv4.
 #[cfg(windows)]
-fn windows_adapters() -> Vec<(i32, std::net::Ipv4Addr)> {
+pub(crate) struct Adapter {
+    rank: i32,
+    pub ip: std::net::Ipv4Addr,
+    pub name: String,
+    /// «{…}» — так адаптер зовётся в списке сетей Windows.
+    pub guid: String,
+    /// VPN, Hyper-V, WSL, виртуальные машины.
+    pub is_virtual: bool,
+    pub vpn: bool,
+    /// Есть выход в другую сеть. У домашней он есть всегда, у VPN — не обязательно.
+    gateway: bool,
+}
+
+#[cfg(windows)]
+pub(crate) fn adapters() -> Vec<Adapter> {
     use windows_sys::Win32::NetworkManagement::IpHelper::{
         GetAdaptersAddresses, GAA_FLAG_INCLUDE_GATEWAYS, GAA_FLAG_SKIP_ANYCAST, GAA_FLAG_SKIP_DNS_SERVER, GAA_FLAG_SKIP_MULTICAST, IP_ADAPTER_ADDRESSES_LH,
     };
@@ -220,6 +236,7 @@ fn windows_adapters() -> Vec<(i32, std::net::Ipv4Addr)> {
     const IF_TYPE_ETHERNET: u32 = 6;
     const IF_TYPE_WIFI: u32 = 71;
     const VIRTUAL: [&str; 16] = ["vethernet", "hyper-v", "wsl", "virtualbox", "vmware", "docker", "tap-", "tap ", "tun", "wireguard", "wintun", "tailscale", "zerotier", "vpn", "radmin", "hamachi"];
+    const NOT_VPN: [&str; 6] = ["vethernet", "hyper-v", "wsl", "virtualbox", "vmware", "docker"];
     let mut out = Vec::new();
     let mut len: u32 = 32 * 1024;
     let mut buf: Vec<u64> = Vec::new();
@@ -250,7 +267,7 @@ fn windows_adapters() -> Vec<(i32, std::net::Ipv4Addr)> {
         while !a.is_null() {
             let ad = &*a;
             a = ad.Next;
-            if ad.OperStatus != IfOperStatusUp || ad.FirstGatewayAddress.is_null() {
+            if ad.OperStatus != IfOperStatusUp {
                 continue;
             }
             let name = format!("{} {}", wstr(ad.FriendlyName), wstr(ad.Description)).to_lowercase();
@@ -259,9 +276,12 @@ fn windows_adapters() -> Vec<(i32, std::net::Ipv4Addr)> {
                 IF_TYPE_ETHERNET => 1,
                 _ => 40,
             };
-            if VIRTUAL.iter().any(|v| name.contains(v)) {
+            let is_virtual = VIRTUAL.iter().any(|v| name.contains(v));
+            if is_virtual {
                 rank += 60;
             }
+            let vpn = is_virtual && !NOT_VPN.iter().any(|v| name.contains(v));
+            let guid = if ad.AdapterName.is_null() { String::new() } else { std::ffi::CStr::from_ptr(ad.AdapterName.cast()).to_string_lossy().into_owned() };
             let mut u = ad.FirstUnicastAddress;
             while !u.is_null() {
                 let ua = &*u;
@@ -273,7 +293,7 @@ fn windows_adapters() -> Vec<(i32, std::net::Ipv4Addr)> {
                 let sin = &*(sa as *const SOCKADDR_IN);
                 let ip = std::net::Ipv4Addr::from(u32::from_be(sin.sin_addr.S_un.S_addr));
                 if !ip.is_loopback() && !ip.is_link_local() {
-                    out.push((rank + ip_rank(ip), ip));
+                    out.push(Adapter { rank: rank + ip_rank(ip), ip, name: wstr(ad.FriendlyName), guid: guid.clone(), is_virtual, vpn, gateway: !ad.FirstGatewayAddress.is_null() });
                 }
             }
         }
@@ -287,6 +307,38 @@ fn lan_ip() -> Option<std::net::IpAddr> {
 
 static CONNECTIONS: AtomicUsize = AtomicUsize::new(0);
 static PORT: OnceLock<u16> = OnceLock::new();
+/// Порт из remote.json: если он занят, пульт встаёт на один из следующих.
+static WANTED_PORT: OnceLock<u16> = OnceLock::new();
+const SPARE_PORTS: u16 = 9;
+
+/// Последнее обращение не с этого компьютера — для «Почему не подключается?».
+static PHONE: Mutex<Option<(std::net::IpAddr, Instant, PhoneSeen)>> = Mutex::new(None);
+
+/// Запомнить, что телефон дошёл до пульта. Страница после входа не перебивает сам вход.
+fn note_phone(s: &TcpStream, seen: PhoneSeen) {
+    let (Ok(peer), Ok(local)) = (s.peer_addr(), s.local_addr()) else { return };
+    // Проверка адреса из браузера на этом же компьютере — не телефон.
+    if peer.ip().is_loopback() || peer.ip() == local.ip() {
+        return;
+    }
+    let mut p = PHONE.lock().unwrap();
+    let keep = seen == PhoneSeen::Page && p.is_some_and(|(ip, at, was)| ip == peer.ip() && was != PhoneSeen::Page && at.elapsed() < Duration::from_secs(600));
+    if !keep {
+        *p = Some((peer.ip(), Instant::now(), seen));
+    }
+}
+
+/// Что сейчас с подключением телефона. Читает настройки Windows, звать не чаще, чем просят.
+fn facts() -> netdiag::Facts {
+    let port = PORT.get().copied().unwrap_or(0);
+    let phone = *PHONE.lock().unwrap();
+    netdiag::facts(netdiag::Server {
+        port,
+        wanted_port: WANTED_PORT.get().copied().unwrap_or(port),
+        phone: phone.map(|(ip, at, seen)| (ip.to_string(), at.elapsed().as_secs(), seen)),
+        locked: locked_out(),
+    })
+}
 
 /// Открыть на этом ПК страницу «Подключить телефон» (QR-код, адрес, PIN, инструкция).
 pub fn open_setup() {
@@ -329,6 +381,11 @@ fn remote_txt(url: &str, pin: &str) -> String {
     )
 }
 
+/// Занять порт из настроек, а если его держит другая программа — ближайший свободный.
+fn bind(ip: [u8; 4], wanted: u16) -> Option<(TcpListener, u16)> {
+    (wanted..=wanted.saturating_add(SPARE_PORTS)).find_map(|port| TcpListener::bind(SocketAddr::from((ip, port))).ok().map(|l| (l, port)))
+}
+
 /// Запустить сервер (один раз). `on_event` вызывается из потока сервера.
 pub fn start(player: Player, on_event: impl Fn(Event) + Send + Sync + 'static) {
     if STARTED.swap(1, Ordering::SeqCst) == 1 {
@@ -339,17 +396,15 @@ pub fn start(player: Player, on_event: impl Fn(Event) + Send + Sync + 'static) {
         log("remote: выключено в remote.json");
         return;
     }
-    let listener = match TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], cfg.port))) {
-        Ok(l) => l,
-        Err(e) => {
-            log(format!("remote: порт {} занят: {e}", cfg.port));
-            return;
-        }
+    let Some((listener, port)) = bind([0, 0, 0, 0], cfg.port) else {
+        log(format!("remote: порты {}–{} заняты", cfg.port, cfg.port.saturating_add(SPARE_PORTS)));
+        return;
     };
-    let url = lan_ip().map(|ip| format!("http://{ip}:{}", cfg.port)).unwrap_or_else(|| format!("http://<IP этого ПК>:{}", cfg.port));
+    let url = phone_url(port);
     let _ = std::fs::write(crate::config::dir().join("remote.txt"), remote_txt(&url, &cfg.pin));
     log(format!("remote: слушаю {url}"));
-    let _ = PORT.set(cfg.port);
+    let _ = PORT.set(port);
+    let _ = WANTED_PORT.set(cfg.port);
     // Первый запуск: сразу показать, как подключить телефон.
     if !cfg.welcomed {
         let mut c = cfg.clone();
@@ -398,6 +453,7 @@ struct Req {
     /// Ключ устройства: заголовок X-Key или cookie ym_key.
     key: Option<String>,
     host: String,
+    origin: String,
 }
 
 fn read_request(s: &mut TcpStream) -> Option<Req> {
@@ -423,6 +479,7 @@ fn read_request(s: &mut TcpStream) -> Option<Req> {
     let mut pin = None;
     let mut key = None;
     let mut host = String::new();
+    let mut origin = String::new();
     for l in lines {
         if let Some((k, v)) = l.split_once(':') {
             let k = k.trim();
@@ -432,12 +489,14 @@ fn read_request(s: &mut TcpStream) -> Option<Req> {
                 key = Some(v.trim().to_string()).filter(|v| !v.is_empty());
             } else if k.eq_ignore_ascii_case("host") {
                 host = v.trim().to_ascii_lowercase();
+            } else if k.eq_ignore_ascii_case("origin") {
+                origin = v.trim().to_ascii_lowercase();
             } else if k.eq_ignore_ascii_case("cookie") && key.is_none() {
                 key = v.split(';').find_map(|c| c.trim().strip_prefix("ym_key=").map(|x| x.to_string())).filter(|v| !v.is_empty());
             }
         }
     }
-    Some(Req { method, path, query, pin, key, host })
+    Some(Req { method, path, query, pin, key, host, origin })
 }
 
 fn param<'a>(query: &'a str, key: &str) -> Option<&'a str> {
@@ -490,6 +549,32 @@ fn snapshot(p: &Player) -> (String, serde_json::Value) {
     (sig, body)
 }
 
+fn origin_ok(origin: &str, port: u16) -> bool {
+    origin == format!("http://127.0.0.1:{port}") || origin == format!("http://localhost:{port}")
+}
+
+/// Кнопка «Исправить». `network` — человек подтвердил, что это домашняя сеть.
+fn fix(network: bool) -> serde_json::Value {
+    static BUSY: Mutex<()> = Mutex::new(());
+    // Второе нажатие, пока открыт запрос Windows, ничего не делает.
+    let Ok(_busy) = BUSY.try_lock() else { return serde_json::json!({ "ok": false, "error": "Запрос Windows уже открыт — посмотрите на панели задач." }) };
+    let f = facts();
+    let mut plan = netdiag::plan(&f);
+    plan.network &= network;
+    if plan == netdiag::Plan::default() {
+        return serde_json::json!({ "ok": true, "report": netdiag::report(&f) });
+    }
+    let res = netdiag::fix(&f, plan);
+    if let Err(e) = &res {
+        log(format!("remote: исправление: {e}"));
+    }
+    let after = netdiag::report(&facts());
+    match res {
+        Ok(done) => serde_json::json!({ "ok": done, "cancelled": !done, "report": after }),
+        Err(e) => serde_json::json!({ "ok": false, "error": e, "report": after }),
+    }
+}
+
 fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
     let Some(req) = read_request(&mut s) else { return Ok(()) };
     // Страница подключения показывает PIN: только с самого ПК и только по адресу 127.0.0.1/localhost
@@ -501,8 +586,21 @@ fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
         if !local || !host_ok {
             return respond(&mut s, "403 Forbidden", "text/plain; charset=utf-8", "Эта страница открывается только на компьютере с программой".as_bytes(), "");
         }
+        // Менять что-то может только сама страница подключения: чужой сайт в том же браузере
+        // умеет слать POST на 127.0.0.1, но Origin у него свой.
+        if req.method != "GET" && !origin_ok(&req.origin, port) {
+            return respond(&mut s, "403 Forbidden", "application/json", br#"{"error":"origin"}"#, "");
+        }
         return match (req.method.as_str(), req.path.as_str()) {
-            ("GET", "/setup") => respond(&mut s, "200 OK", "text/html; charset=utf-8", SETUP.as_bytes(), "Referrer-Policy: no-referrer\r\n"),
+            ("GET", "/setup") => respond(&mut s, "200 OK", "text/html; charset=utf-8", SETUP.as_bytes(), "Referrer-Policy: no-referrer\r\nX-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'\r\n"),
+            ("GET", "/setup/diag") => {
+                let body = netdiag::report(&facts());
+                respond(&mut s, "200 OK", "application/json; charset=utf-8", body.to_string().as_bytes(), "")
+            }
+            ("POST", "/setup/fix") => {
+                let body = fix(param(&req.query, "network") == Some("1"));
+                respond(&mut s, "200 OK", "application/json; charset=utf-8", body.to_string().as_bytes(), "")
+            }
             ("GET", "/setup/info") => {
                 let url = phone_url(port);
                 let cfg = ctx.cfg.lock().unwrap();
@@ -532,6 +630,7 @@ fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
     }
     match (req.method.as_str(), req.path.as_str()) {
         ("GET", "/") | ("GET", "/index.html") => {
+            note_phone(&s, PhoneSeen::Page);
             return respond(&mut s, "200 OK", "text/html; charset=utf-8", PAGE.as_bytes(), "Referrer-Policy: no-referrer\r\n");
         }
         ("GET", "/icon.png") => return respond(&mut s, "200 OK", "image/png", ICON, ""),
@@ -560,11 +659,13 @@ fn handle(ctx: &Ctx, mut s: TcpStream) -> std::io::Result<()> {
     if !pin_ok && !key_ok {
         // Пустой запрос (страница проверяет, помнят ли её) — не попытка подбора.
         if req.pin.is_some() || req.key.is_some() {
+            note_phone(&s, PhoneSeen::Denied);
             note_fail();
             thread::sleep(Duration::from_millis(800));
         }
         return respond(&mut s, "401 Unauthorized", "application/json", br#"{"error":"pin"}"#, "");
     }
+    note_phone(&s, PhoneSeen::Ok);
     // Вход по PIN: выдать телефону постоянный ключ, PIN больше не спрашивается.
     if (req.method.as_str(), req.path.as_str()) == ("POST", "/api/login") {
         if !pin_ok {
@@ -695,4 +796,26 @@ fn decode(v: &str) -> String {
         i += 1;
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_own_page_may_post() {
+        assert!(origin_ok("http://127.0.0.1:8787", 8787));
+        assert!(origin_ok("http://localhost:8787", 8787));
+        for bad in ["", "null", "https://evil.example", "http://127.0.0.1:8788", "http://127.0.0.1:8787.evil.example", "http://192.168.1.42:8787"] {
+            assert!(!origin_ok(bad, 8787), "{bad}");
+        }
+    }
+
+    #[test]
+    fn busy_port_moves_to_the_next() {
+        let (first, port) = bind([127, 0, 0, 1], 38_700).expect("свободный порт");
+        let (_second, next) = bind([127, 0, 0, 1], port).expect("запасной порт");
+        assert!(next > port && next <= port + SPARE_PORTS);
+        drop(first);
+    }
 }

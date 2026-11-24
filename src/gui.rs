@@ -1347,17 +1347,21 @@ fn start_updates(ui: &AppWindow) {
     });
     ui.global::<App>().on_update_install(|| {
         let Some(r) = UPDATE.with(|u| u.borrow().clone()) else { return };
-        // В релизе нет exe — обновить можно только руками, ведём на страницу.
-        if r.exe.is_none() {
+        // Нет установщика или программа стоит без него — обновить можно только руками, ведём на страницу.
+        if !crate::update::can_install(&r) {
             sys::open_url(&r.page);
             return;
         }
         with_ctx(|c| c.ui().global::<App>().set_update_busy(true));
         std::thread::spawn(move || {
-            let res = crate::update::install(&r).and_then(|exe| crate::update::relaunch(&exe));
+            let res = crate::update::install(&r);
             let _ = slint::invoke_from_event_loop(move || match res {
-                // Новая версия ждёт, пока мы закроемся.
+                // Установщик ждёт, пока мы закроемся, и сам запустит новую версию.
                 Ok(()) => quit(),
+                Err(e) if e == crate::update::CANCELLED => with_ctx(|c| {
+                    c.ui().global::<App>().set_update_busy(false);
+                    c.toast("Обновление отменено");
+                }),
                 Err(e) => {
                     log(format!("обновление: {e}"));
                     with_ctx(|c| {
@@ -1550,7 +1554,7 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
         None => retry_assets(&ui),
     }
     load_id_icons(&ui);
-    crate::update::ENABLED.store(false, Ordering::Relaxed);
+    crate::update::ENABLED.store(cfg.check_updates, Ordering::Relaxed);
     start_updates(&ui);
 
     crate::api::ALLOW_EXPLICIT.store(cfg.allow_explicit, Ordering::Relaxed);

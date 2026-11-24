@@ -362,3 +362,88 @@ pub fn copy_text(text: &str) {
         let _ = child.wait();
     }
 }
+
+/// Как поставлена программа: только для этого человека или для всех.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum InstallScope {
+    User,
+    Machine,
+}
+
+/// Раздел удаления, который создаёт установщик (AppId в packaging/windows/seb0g1-musick.iss).
+const UNINSTALL: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{6B1E0C7A-5D3F-4E21-9A64-5EB0611C0DE5}_is1";
+
+/// Запущенный exe поставлен установщиком? `None` — это отдельный файл, обновлять его нечем.
+pub fn install_scope() -> Option<InstallScope> {
+    use windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE;
+    let dir = std::env::current_exe().ok()?.parent()?.display().to_string();
+    let norm = |s: &str| s.trim_end_matches('\\').to_lowercase();
+    [(HKEY_CURRENT_USER, InstallScope::User), (HKEY_LOCAL_MACHINE, InstallScope::Machine)]
+        .into_iter()
+        .find(|(root, _)| reg_string(*root, UNINSTALL, "InstallLocation").is_some_and(|d| norm(&d) == norm(&dir)))
+        .map(|(_, scope)| scope)
+}
+
+fn reg_string(root: windows_sys::Win32::System::Registry::HKEY, path: &str, name: &str) -> Option<String> {
+    let (path, name) = (wide(path), wide(name));
+    let mut buf = vec![0u16; 1024];
+    let mut size = (buf.len() * 2) as u32;
+    let r = unsafe { RegGetValueW(root, path.as_ptr(), name.as_ptr(), RRF_RT_REG_SZ, null_mut(), buf.as_mut_ptr().cast(), &mut size) };
+    (r == 0).then(|| String::from_utf16_lossy(&buf[..buf.iter().position(|c| *c == 0).unwrap_or(buf.len())]))
+}
+
+/// Есть ли мьютекс с таким именем (пусть даже чужой, к которому нас не пускают).
+pub fn mutex_exists(name: &str) -> bool {
+    use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ACCESS_DENIED};
+    use windows_sys::Win32::System::Threading::OpenMutexW;
+    const SYNCHRONIZE: u32 = 0x0010_0000;
+    let name = wide(name);
+    unsafe {
+        let m = OpenMutexW(SYNCHRONIZE, 0, name.as_ptr());
+        if m.is_null() {
+            return GetLastError() == ERROR_ACCESS_DENIED;
+        }
+        CloseHandle(m);
+        true
+    }
+}
+
+/// Запустить этот же exe с правами администратора и дождаться конца: код выхода или `None`,
+/// если человек закрыл запрос Windows.
+pub fn run_elevated(args: &[String]) -> Result<Option<u32>, String> {
+    use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, ERROR_CANCELLED, WAIT_OBJECT_0};
+    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject};
+    use windows_sys::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
+    let exe = wide(&std::env::current_exe().map_err(|e| e.to_string())?.display().to_string());
+    let verb = wide("runas");
+    let params = wide(&args.join(" "));
+    unsafe {
+        let mut i: SHELLEXECUTEINFOW = std::mem::zeroed();
+        i.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
+        i.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
+        // Впереди сейчас браузер: без его окна запрос прав свернулся бы на панель задач.
+        i.hwnd = GetForegroundWindow();
+        i.lpVerb = verb.as_ptr();
+        i.lpFile = exe.as_ptr();
+        i.lpParameters = params.as_ptr();
+        i.nShow = SW_HIDE;
+        if ShellExecuteExW(&mut i) == 0 {
+            return match GetLastError() {
+                ERROR_CANCELLED => Ok(None),
+                e => Err(format!("Windows не дала запустить исправление (код {e})")),
+            };
+        }
+        if i.hProcess.is_null() {
+            return Err("Windows не запустила исправление".into());
+        }
+        let done = WaitForSingleObject(i.hProcess, 60_000) == WAIT_OBJECT_0;
+        let mut code = 0u32;
+        GetExitCodeProcess(i.hProcess, &mut code);
+        CloseHandle(i.hProcess);
+        if done {
+            Ok(Some(code))
+        } else {
+            Err("исправление не ответило за минуту".into())
+        }
+    }
+}

@@ -193,7 +193,9 @@ jobs:
           archive: false
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Релизы Seb0g1 Musick собираются с установщиком на своём компьютере: без файла
+    # Seb0g1-Musick-Setup-<версия>.exe программа не сможет обновиться кнопкой.
+    if: startsWith(github.ref, 'refs/tags/v') && github.repository == 'SpolzerMod/yamusic-rs'
     needs: [windows, linux, linux-arm64, android]
     runs-on: ubuntu-latest
     permissions:
